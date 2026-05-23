@@ -2187,7 +2187,6 @@ let pendingCharId = null;
 
 /* ── OPEN / CLOSE CHAT ───────────────────────────────────────── */
 function openChat(id){
-  if(!groqKey){ openApiKeyModal(); return; }
   activeChar = CHAR_DATA[id];
   chatHistory = [];
   const c = activeChar;
@@ -2235,6 +2234,7 @@ async function sendOpeningMessage(){
 
   } catch(e){
     removeTyping();
+    if(!groqKey) appendMsg('ai', '🔑 כדי לדבר איתי לחץ על Key למעלה והכנס מפתח Groq חינמי.');
   }
   chatBusy = false;
   document.getElementById('btnSend').disabled = false;
@@ -2313,7 +2313,6 @@ function stopMic(){
 
 /* ── SEND MESSAGE ────────────────────────────────────────────── */
 async function sendMsg(){
-  if(!groqKey){ openApiKeyModal(); return; }
   if(chatBusy) return;
   const inp = document.getElementById('chatInp');
   const text = inp.value.trim();
