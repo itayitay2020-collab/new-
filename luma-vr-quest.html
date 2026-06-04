@@ -1130,20 +1130,20 @@ function initVRButton() {
       btn.disabled = false;
       btn.querySelector('.vr-btn-label').innerHTML = '🥽 Enter VR (Meta Quest)';
       let session = null;
-      btn.onclick = () => {
-        if (session) { session.end(); return; }
-        navigator.xr.requestSession('immersive-vr', {
-          optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers']
-        }).then(s => {
+      btn.onclick = async () => {
+        if (session) { await session.end(); return; }
+        try {
+          const s = await navigator.xr.requestSession('immersive-vr', {
+            optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+          });
           session = s;
-          renderer.xr.setSession(s);
+          await renderer.xr.setSession(s);   // ← must await before doing anything
           btn.querySelector('.vr-btn-label').innerHTML = '🚪 Exit VR';
-          // Enter VR mode
           document.getElementById('vr-world').style.display = 'none';
           document.getElementById('vr-hud').style.display = 'none';
           document.getElementById('vr-cursor').style.display = 'none';
-          camera.position.set(0, 1.6, 0);
           vrUIGroup.visible = true;
+          vrHideAllPanels();
           buildVRHomePanel();
           s.addEventListener('end', () => {
             session = null;
@@ -1152,11 +1152,13 @@ function initVRButton() {
             document.getElementById('vr-hud').style.display = '';
             document.getElementById('vr-cursor').style.display = '';
             vrUIGroup.visible = false;
+            vrHideAllPanels();
           });
-        }).catch(e => {
+        } catch(e) {
           console.error('VR session failed:', e);
-          btn.querySelector('.vr-btn-label').innerHTML = '⚠ VR failed — check permissions';
-        });
+          btn.querySelector('.vr-btn-label').innerHTML = '⚠ ' + (e.message || 'VR failed');
+          setTimeout(() => { btn.querySelector('.vr-btn-label').innerHTML = '🥽 Enter VR (Meta Quest)'; }, 3000);
+        }
       };
     } else {
       btn.querySelector('.vr-btn-label').innerHTML = '🥽 VR not supported on this device';
