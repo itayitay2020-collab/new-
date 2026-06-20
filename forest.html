@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>קַרַחַת — תקרה נפתחת אל השמיים</title>
+<style>
+  :root{--cream:#f3ecdd;--gold:#f4c66a;--terra:#c4683f;--ink:#1b241d}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#14291b;overflow:hidden;font-family:"Heebo",system-ui,sans-serif;color:var(--cream)}
+  canvas{display:block}
+  #overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:32px;transition:opacity .8s ease;
+    background:radial-gradient(120% 80% at 50% -10%,rgba(244,198,106,.18),transparent 60%),linear-gradient(180deg,#1c3d26,#14291b)}
+  .eyebrow{font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;font-weight:600}
+  h1{font-size:clamp(38px,9vw,68px);line-height:.96;font-weight:800;margin-bottom:16px}
+  h1 .sub{display:block;font-size:.32em;font-weight:500;letter-spacing:.04em;color:#cdbf9f;margin-top:14px}
+  p.lead{max-width:30ch;font-size:16px;line-height:1.7;color:#d8cdb4;margin-bottom:30px}
+  button#enter{appearance:none;border:none;cursor:pointer;font-family:inherit;font-size:18px;font-weight:700;color:var(--ink);
+    padding:18px 40px;border-radius:999px;background:linear-gradient(180deg,#f6d489,#e8b659);
+    box-shadow:0 12px 30px rgba(232,182,89,.32),inset 0 1px 0 rgba(255,255,255,.5);transition:transform .15s}
+  button#enter:hover{transform:translateY(-2px)}
+  button#enter:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
+  #msg{margin-top:18px;font-size:14px;color:#f0b9a0;min-height:20px;max-width:36ch;line-height:1.6}
+  .hint{margin-top:24px;font-size:13px;color:#9fb0a0;max-width:34ch;line-height:1.6}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="overlay">
+  <div class="eyebrow">מציאות מעורבת · Quest</div>
+  <h1>קַרַחַת<span class="sub">התקרה נפתחת אל השמיים</span></h1>
+  <p class="lead">הישארו במקומכם. החדר שלכם נשאר — רק הגג נפתח, הקצוות מקבלים רעפים, ומעל מתגלים שמיים ועץ.</p>
+  <button id="enter">פתיחת הגג</button>
+  <div id="msg"></div>
+  <div class="hint">דורש Quest 3 / 3S בדפדפן Horizon. בכניסה הראשונה ייתכן שתתבקשו לסרוק את החדר פעם אחת.</div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+const overlay=document.getElementById('overlay');
+const enterBtn=document.getElementById('enter');
+const msg=document.getElementById('msg');
+
+let renderer,scene,camera,refSpace;
+let ceilingY=2.5, ceilingFound=false, built=false, noPlaneTimer=0;
+let maskMesh, maskMat, openT=0, openR=0, openRmax=2.5;
+let tileGroup, trees=[], birds=[], sunGlow;
+const clock=new THREE.Clock();
+
+if(!navigator.xr) msg.textContent="הדפדפן הזה לא תומך ב-WebXR. פתחו בדפדפן Horizon על הקווסט.";
+enterBtn.addEventListener('click',startXR);
+
+async function startXR(){
+  msg.textContent="";
+  if(!navigator.xr){msg.textContent="אין תמיכת WebXR.";return;}
+  const ok=await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);
+  if(!ok){msg.textContent="מצב immersive-ar לא נתמך כאן.";return;}
+  let session;
+  try{
+    session=await navigator.xr.requestSession('immersive-ar',{
+      requiredFeatures:['local-floor'],
+      optionalFeatures:['plane-detection','mesh-detection','anchors','hit-test']
+    });
+  }catch(e){msg.textContent="לא ניתן לפתוח סשן: "+(e.message||e);return;}
+  initScene();
+  renderer.xr.setReferenceSpaceType('local-floor');
+  await renderer.xr.setSession(session);
+  refSpace=renderer.xr.getReferenceSpace();
+  overlay.style.opacity='0'; setTimeout(()=>overlay.style.display='none',800);
+  session.addEventListener('end',()=>{overlay.style.display='flex';overlay.style.opacity='1';});
+  renderer.setAnimationLoop(render);
+}
+
+function initScene(){
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,stencil:true});
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.xr.enabled=true;
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.setClearColor(0x000000,0);   // transparent -> passthrough shows the real room
+  document.body.appendChild(renderer.domElement);
+
+  scene=new THREE.Scene();              // no background -> passthrough
+  camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.05,300);
+
+  scene.add(new THREE.HemisphereLight(0xddeeff,0x4a6b3a,1.2));
+  const sun=new THREE.DirectionalLight(0xfff3d6,1.5); sun.position.set(4,12,3); scene.add(sun);
+
+  addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+}
+
+/* ---------- find ceiling, then build everything ---------- */
+function scanPlanes(frame){
+  if(ceilingFound||!frame.detectedPlanes) return;
+  let best=null,bestY=-Infinity;
+  for(const p of frame.detectedPlanes){
+    if(p.orientation!=='horizontal') continue;
+    const pose=frame.getPose(p.planeSpace,refSpace); if(!pose) continue;
+    const y=pose.transform.position.y;
+    if(y>bestY){bestY=y;best={p,pose};}
+  }
+  if(best&&bestY>1.6){
+    ceilingY=bestY; ceilingFound=true;
+    const m=new THREE.Matrix4().fromArray(best.pose.transform.matrix);
+    const poly=best.p.polygon.map(pt=>new THREE.Vector2(pt.x,pt.z));
+    buildWorld(poly,m);
+  }
+}
+function buildFallback(){
+  const m=new THREE.Matrix4().makeTranslation(0,ceilingY,0)
+          .multiply(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+  const poly=[new THREE.Vector2(-2,-2),new THREE.Vector2(2,-2),new THREE.Vector2(2,2),new THREE.Vector2(-2,2)];
+  buildWorld(poly,m);
+}
+
+function buildWorld(poly,matrix){
+  built=true;
+  let cx=0,cz=0; poly.forEach(p=>{cx+=p.x;cz+=p.y;}); cx/=poly.length; cz/=poly.length;
+  let ext=0; poly.forEach(p=>ext=Math.max(ext,Math.hypot(p.x-cx,p.y-cz)));
+  openRmax=ext*1.05;
+  buildStencilMask(matrix,cx,cz);
+  buildSky(matrix,cx,cz,ext);
+  buildTileRim(poly,matrix);
+  buildTrees(matrix,cx,cz,ext);
+  buildBirds(matrix,cx,cz);
+}
+
+/* ---- 1. stencil mask: a growing disc that marks WHERE sky may draw (the opening) ---- */
+function buildStencilMask(matrix,cx,cz){
+  const geo=new THREE.CircleGeometry(1,48);
+  maskMat=new THREE.MeshBasicMaterial({
+    colorWrite:false, depthWrite:false, depthTest:false,
+    stencilWrite:true, stencilRef:1,
+    stencilFunc:THREE.AlwaysStencilFunc, stencilZPass:THREE.ReplaceStencilOp
+  });
+  maskMesh=new THREE.Mesh(geo,maskMat);
+  maskMesh.renderOrder=0;
+  const local=new THREE.Matrix4().makeTranslation(cx,0,cz)
+              .multiply(new THREE.Matrix4().makeRotationX(-Math.PI/2));
+  maskMesh.applyMatrix4(matrix.clone().multiply(local));
+  maskMesh.scale.setScalar(0.001);
+  scene.add(maskMesh);
+}
+
+/* ---- 2. sky + sun + clouds, drawn ONLY where stencil==1 ---- */
+function skyStencil(mat){
+  mat.stencilWrite=true; mat.stencilRef=1;
+  mat.stencilFunc=THREE.EqualStencilFunc;
+  mat.stencilFail=THREE.KeepStencilOp; mat.stencilZFail=THREE.KeepStencilOp; mat.stencilZPass=THREE.KeepStencilOp;
+  return mat;
+}
+function buildSky(matrix,cx,cz,ext){
+  const geo=new THREE.SphereGeometry(80,32,16,0,Math.PI*2,0,Math.PI*0.5);
+  const mat=skyStencil(new THREE.ShaderMaterial({
+    side:THREE.BackSide, depthWrite:false,
+    uniforms:{zen:{value:new THREE.Color(0x3f8fd6)},hor:{value:new THREE.Color(0xcfe7f2)}},
+    vertexShader:`varying float h;void main(){h=normalize(position).y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`varying float h;uniform vec3 zen,hor;void main(){float t=clamp(h*1.3,0.0,1.0);gl_FragColor=vec4(mix(hor,zen,t),1.0);}`
+  }));
+  const sky=new THREE.Mesh(geo,mat); sky.renderOrder=1;
+  const lp=new THREE.Vector3(cx,0,cz).applyMatrix4(matrix);
+  sky.position.set(lp.x,ceilingY,lp.z); scene.add(sky);
+
+  const gm=skyStencil(new THREE.SpriteMaterial({color:0xfff2c4,transparent:true,opacity:0,depthWrite:false}));
+  sunGlow=new THREE.Sprite(gm); sunGlow.scale.setScalar(9); sunGlow.renderOrder=2;
+  sunGlow.position.set(lp.x+10,ceilingY+22,lp.z-14); scene.add(sunGlow);
+
+  const cMat=skyStencil(new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.85,depthWrite:false}));
+  for(let i=0;i<3;i++){
+    const c=new THREE.Mesh(new THREE.SphereGeometry(3+Math.random()*2,12,8),cMat);
+    c.scale.set(1.8,0.6,1.2);
+    c.position.set(lp.x+(Math.random()-0.5)*30,ceilingY+14+Math.random()*8,lp.z+(Math.random()-0.5)*30);
+    c.renderOrder=2; scene.add(c);
+  }
+}
+
+/* ---- 3. Spanish barrel-tile rim along the wall tops ---- */
+function buildTileRim(poly,matrix){
+  tileGroup=new THREE.Group();
+  const cols=[0xc4683f,0xb95c34,0xcf7548,0xa85230];
+  const R=0.07, LEN=0.22, STEP=0.10;
+  for(let e=0;e<poly.length;e++){
+    const a=poly[e], b=poly[(e+1)%poly.length];
+    const dir=new THREE.Vector2().subVectors(b,a);
+    const segLen=dir.length(); if(segLen<0.01) continue; dir.normalize();
+    const n=Math.max(1,Math.floor(segLen/STEP));
+    const ang=Math.atan2(dir.y,dir.x);
+    for(let i=0;i<=n;i++){
+      const t=i/n, px=a.x+dir.x*segLen*t, pz=a.y+dir.y*segLen*t;
+      const tile=new THREE.Mesh(
+        new THREE.CylinderGeometry(R,R,LEN,8,1,false,0,Math.PI),
+        new THREE.MeshStandardMaterial({color:cols[i%4],roughness:.85,flatShading:true,transparent:true,opacity:0})
+      );
+      tile.rotation.order='YXZ';
+      tile.rotation.y=ang; tile.rotation.z=Math.PI/2;
+      tile.position.set(px,0.04,pz);
+      tileGroup.add(tile);
+    }
+  }
+  tileGroup.applyMatrix4(matrix);
+  scene.add(tileGroup);
+}
+
+/* ---- 4. trees draping over the opening (through stencil) ---- */
+function makeTree(scale){
+  const g=new THREE.Group();
+  const bark=skyStencil(new THREE.MeshStandardMaterial({color:0x7a5536,roughness:1,flatShading:true}));
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.12*scale,0.2*scale,3.2*scale,7),bark);
+  trunk.position.y=1.6*scale; g.add(trunk);
+  for(let i=0;i<5;i++){
+    const a=(i/5)*Math.PI*2;
+    const br=new THREE.Mesh(new THREE.CylinderGeometry(0.05*scale,0.1*scale,1.8*scale,6),bark);
+    br.position.set(Math.cos(a)*0.6*scale,3.0*scale,Math.sin(a)*0.6*scale);
+    br.rotation.z=Math.cos(a)*0.9; br.rotation.x=Math.sin(a)*0.9; g.add(br);
+  }
+  const greens=[0x4d8c54,0x3f7a4a,0x5fa066];
+  for(let i=0;i<9;i++){
+    const a=Math.random()*Math.PI*2, rr=(0.4+Math.random()*1.4)*scale;
+    const blob=new THREE.Mesh(new THREE.IcosahedronGeometry((0.8+Math.random()*0.8)*scale,0),
+      skyStencil(new THREE.MeshStandardMaterial({color:greens[i%3],roughness:1,flatShading:true})));
+    blob.position.set(Math.cos(a)*rr,(3.2+Math.random()*1.4)*scale,Math.sin(a)*rr); g.add(blob);
+  }
+  g.traverse(o=>o.renderOrder=3);
+  return g;
+}
+function buildTrees(matrix,cx,cz,ext){
+  const spots=[[cx-ext*0.5,cz-ext*0.4,1.4],[cx+ext*0.6,cz+ext*0.5,1.1]];
+  for(const [x,z,s] of spots){
+    const t=makeTree(s);
+    const wp=new THREE.Vector3(x,0,z).applyMatrix4(matrix);
+    t.position.set(wp.x,ceilingY-0.2,wp.z);
+    t.userData.sway=Math.random()*6.28;
+    scene.add(t); trees.push(t);
+  }
+}
+
+/* ---- 5. birds ---- */
+function buildBirds(matrix,cx,cz){
+  const wp=new THREE.Vector3(cx,0,cz).applyMatrix4(matrix);
+  const mat=skyStencil(new THREE.MeshBasicMaterial({color:0x2b2b2b,side:THREE.DoubleSide}));
+  for(let i=0;i<6;i++){
+    const b=new THREE.Group();
+    const wL=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.1),mat);
+    const wR=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.1),mat);
+    wL.position.x=-0.15; wR.position.x=0.15; b.add(wL,wR);
+    b.userData={a:Math.random()*6.28,rad:4+Math.random()*5,hgt:ceilingY+4+Math.random()*6,
+      spd:0.25+Math.random()*0.25,flap:Math.random()*6.28,wL,wR,cx:wp.x,cz:wp.z};
+    b.traverse(o=>o.renderOrder=3);
+    scene.add(b); birds.push(b);
+  }
+}
+
+/* ---------- loop ---------- */
+function render(t,frame){
+  const dt=clock.getDelta(), time=clock.elapsedTime;
+  if(frame){
+    scanPlanes(frame);
+    if(!built){ noPlaneTimer+=dt; if(noPlaneTimer>4) buildFallback(); }
+  }
+  if(built&&openT<1){
+    openT=Math.min(1,openT+dt*0.3);
+    const e=1-Math.pow(1-openT,3);
+    openR=openRmax*e;
+    if(maskMesh) maskMesh.scale.setScalar(Math.max(0.001,openR));
+    if(tileGroup) tileGroup.traverse(o=>{ if(o.material) o.material.opacity=e; });
+    if(sunGlow) sunGlow.material.opacity=0.9*e;
+  }
+  for(const tr of trees) tr.rotation.z=Math.sin(time*0.5+tr.userData.sway)*0.02;
+  for(const b of birds){
+    const u=b.userData; u.a+=u.spd*dt; u.flap+=dt*9;
+    b.position.set(u.cx+Math.cos(u.a)*u.rad,u.hgt+Math.sin(u.a*2)*0.4,u.cz+Math.sin(u.a)*u.rad);
+    b.lookAt(u.cx+Math.cos(u.a+0.1)*u.rad,b.position.y,u.cz+Math.sin(u.a+0.1)*u.rad);
+    const f=Math.sin(u.flap)*0.6; u.wL.rotation.z=f; u.wR.rotation.z=-f;
+  }
+  renderer.render(scene,camera);
+}
+</script>
+</body>
+</html>
