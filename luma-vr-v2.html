@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LUMA VR</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+:root{--bg:#04000C;--ink:#F6F0FF;--ink2:rgba(246,240,255,.7);--ink3:rgba(246,240,255,.4);
+  --pink:#FF3D9A;--violet:#B47BFF;--cyan:#5BE9FF;--glass:rgba(255,255,255,.06);--line:rgba(255,255,255,.1)}
+html,body{background:var(--bg);color:var(--ink);font-family:'Space Grotesk',sans-serif;height:100%;overflow:hidden}
+
+/* ── OVERLAY ── */
+#overlay{position:fixed;inset:0;z-index:50;overflow-y:auto;
+  background:radial-gradient(800px at 80% 0%,rgba(255,61,154,.15),transparent 60%),
+             radial-gradient(600px at 0% 60%,rgba(91,233,255,.08),transparent 60%),var(--bg);
+  display:flex;flex-direction:column;align-items:center;padding:28px 16px 64px}
+#overlay.hidden{display:none}
+
+.logo{font-family:'Instrument Serif',serif;font-size:52px;letter-spacing:.2em;font-weight:400;
+  background:linear-gradient(110deg,#FFE8F1,var(--pink) 40%,var(--violet) 70%,var(--cyan));
+  -webkit-background-clip:text;background-clip:text;color:transparent;margin:12px 0 4px}
+.tagline{color:var(--ink3);font-size:12px;letter-spacing:.06em;margin-bottom:24px}
+
+.card{width:100%;max-width:540px;background:var(--glass);border:1px solid var(--line);
+  border-radius:20px;padding:20px;backdrop-filter:blur(16px);margin-bottom:16px}
+.card h3{font-size:13px;font-weight:500;color:var(--ink2);letter-spacing:.03em;margin-bottom:14px}
+
+/* key input */
+.keyrow{display:flex;gap:8px}
+.keyrow input{flex:1;background:rgba(0,0,0,.35);border:1px solid var(--line);color:var(--ink);
+  border-radius:10px;padding:12px 14px;font-size:14px;font-family:inherit;outline:none}
+.keyrow input:focus{border-color:rgba(91,233,255,.5)}
+.keyrow button{background:linear-gradient(120deg,var(--pink),var(--violet));border:none;color:#fff;
+  padding:0 18px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit}
+.keyok{font-size:12px;color:#7BFFB0;margin-top:8px;display:none}
+
+/* character grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:400px){.grid{grid-template-columns:repeat(2,1fr)}}
+.ch{position:relative;border-radius:14px;overflow:hidden;cursor:pointer;aspect-ratio:2/3;
+  border:1.5px solid var(--line);transition:transform .2s,box-shadow .2s}
+.ch:hover{transform:translateY(-3px)}
+.ch.sel{border-color:var(--pink);box-shadow:0 0 0 2px var(--pink),0 12px 32px rgba(255,61,154,.3)}
+.ch .bg{position:absolute;inset:0}
+.ch video,.ch .bg{width:100%;height:100%;object-fit:cover}
+.ch video{position:absolute;inset:0}
+.ch .info{position:absolute;inset:0;bottom:0;padding:10px;background:linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 60%);
+  display:flex;flex-direction:column;justify-content:flex-end;z-index:2}
+.ch .nm{font-family:'Instrument Serif',serif;font-size:18px;line-height:1}
+.ch .sb{font-size:9.5px;color:var(--ink2);margin-top:2px}
+
+/* env */
+.envs{display:flex;gap:8px}
+.env{flex:1;padding:12px 10px;border-radius:12px;border:1.5px solid var(--line);background:rgba(0,0,0,.2);
+  cursor:pointer;text-align:center;transition:.2s}
+.env.sel{border-color:var(--cyan);background:rgba(91,233,255,.07)}
+.env .ei{font-size:20px;margin-bottom:4px}
+.env .en{font-size:13px;font-weight:500}
+.env .ed{font-size:10px;color:var(--ink3);margin-top:2px}
+
+/* enter button */
+#enterBtn{width:100%;max-width:540px;padding:17px;border:none;border-radius:14px;
+  background:#FF3D9A;color:#fff;font-size:16px;font-weight:700;
+  cursor:pointer;font-family:inherit;opacity:.35;pointer-events:none;transition:opacity .2s,background .2s}
+#enterBtn.on{opacity:1;pointer-events:auto;background:#FF3D9A}
+#enterBtn.on:active{background:#d42d80;transform:scale(.98)}
+.note{max-width:540px;color:var(--ink3);font-size:11px;text-align:center;margin-top:12px;line-height:1.7}
+
+/* ── VR HUD ── */
+#hud{position:fixed;bottom:0;left:0;right:0;z-index:60;padding:16px;
+  display:none;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
+#hud.on{display:flex}
+#sub{max-width:88vw;text-align:center;font-size:17px;line-height:1.5;
+  background:rgba(4,0,12,.65);padding:10px 18px;border-radius:12px;
+  border:1px solid var(--line);backdrop-filter:blur(10px)}
+.hbtns{display:flex;gap:8px;pointer-events:auto}
+.hbtns button{background:rgba(4,0,12,.6);border:1px solid var(--line);color:var(--ink);
+  padding:10px 16px;border-radius:10px;font-size:14px;cursor:pointer;
+  font-family:inherit;backdrop-filter:blur(8px);transition:.15s}
+.hbtns button:active{transform:scale(.95)}
+#micBtn.rec{border-color:var(--pink);color:var(--pink)}
+#exitBtn{position:fixed;top:14px;right:14px;z-index:61;display:none;
+  background:rgba(4,0,12,.6);border:1px solid var(--line);color:var(--ink);
+  padding:8px 14px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit}
+#exitBtn.on{display:block}
+
+/* ── A-FRAME SCENE ── */
+#vrscene{position:fixed;inset:0;z-index:1;visibility:hidden}
+#vrscene.on{visibility:visible}
+</style>
+</head>
+<body>
+
+<!-- ════ SETUP OVERLAY ════ -->
+<div id="overlay">
+  <div class="logo">LUMA</div>
+  <div class="tagline">VR COMPANION · QUEST 3</div>
+
+  <div class="card">
+    <h3>① GROQ API KEY</h3>
+    <div class="keyrow">
+      <input id="keyInput" type="password" placeholder="gsk_..." autocomplete="off"/>
+      <button onclick="saveKey()">שמור</button>
+    </div>
+    <div class="keyok" id="keyOk">✓ מפתח שמור</div>
+    <div style="font-size:11px;color:var(--ink3);margin-top:8px">
+      מפתח חינמי: <a href="https://console.groq.com/keys" target="_blank" style="color:var(--cyan)">console.groq.com/keys</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>② בחר דמות</h3>
+    <div class="grid" id="charGrid"></div>
+  </div>
+
+  <div class="card">
+    <h3>③ בחר סביבה</h3>
+    <div class="envs" id="envGrid"></div>
+  </div>
+
+  <button id="enterBtn" onclick="goVR()">🥽 כנס ל-VR</button>
+  <div class="note">פתח בדפדפן של Quest 3 · בחר דמות וסביבה · כנס ל-VR<br>דבר עם הדמות בקול — היא תענה ותדבר אליך</div>
+</div>
+
+<!-- ════ HUD ════ -->
+<button id="exitBtn" onclick="leaveVR()">✕ צא</button>
+<div id="hud">
+  <div id="sub">…</div>
+  <div class="hbtns">
+    <button id="micBtn" onclick="toggleMic()">🎙 דבר</button>
+    <button id="volBtn" onclick="toggleVol()">🔊</button>
+  </div>
+</div>
+
+<!-- ════ A-FRAME SCENE ════ -->
+<div id="vrscene">
+<a-scene
+  vr-mode-ui="enabled:true"
+  renderer="colorManagement:true;antialias:true;physicallyCorrectLights:true"
+  loading-screen="enabled:false"
+  background="color:#04000C">
+
+  <a-assets id="aAssets" timeout="10000"></a-assets>
+
+  <!-- environment -->
+  <a-entity id="envRoot"></a-entity>
+
+  <!-- character: video plane + glow + name label -->
+  <a-entity id="charRoot" position="0 1.45 -2.2">
+    <a-video id="charPlane" width="1.35" height="1.8" position="0 0 0"
+      material="shader:flat;transparent:true"></a-video>
+    <a-plane id="charGlow" width="1.65" height="2.1" position="0 0 -0.03"
+      material="shader:flat;color:#FF3D9A;opacity:0.15;transparent:true;blending:additive"
+      animation__glow="property:material.opacity;from:0.08;to:0.22;dur:2200;loop:true;dir:alternate;easing:easeInOutSine"></a-plane>
+    <a-entity id="charName" position="0 -1.05 0.05"
+      text="value: ;align:center;width:2.8;color:#F6F0FF;wrapCount:20"></a-entity>
+  </a-entity>
+
+  <!-- lighting -->
+  <a-light type="ambient" color="#3a2050" intensity="1.2"></a-light>
+  <a-light type="point" position="0 3 -1" color="#FF93C2" intensity="0.7" distance="8"></a-light>
+  <a-light type="point" position="-2 2 0" color="#5BE9FF" intensity="0.3" distance="6"></a-light>
+
+  <!-- camera rig -->
+  <a-entity id="rig" position="0 0 0">
+    <a-camera look-controls wasd-controls="enabled:false" position="0 1.6 0"></a-camera>
+  </a-entity>
+
+</a-scene>
+</div>
+
+<script>
+/* ═══════════════════════════════
+   CHARACTER DATA
+═══════════════════════════════ */
+const BASE = 'https://itayitay2020-collab.github.io/new-/';
+const CHARS = [
+  { id:'seojun', name:'Seo-jun', sub:'Architect · Seoul',
+    grad:'linear-gradient(160deg,#FFB8E0,#FF3D9A,#6D2BFF)', glow:'#FF3D9A',
+    video:'Full-body-video-of-the-man-in--6a025d2f94fe-o3-pro-reference-to.mp4',
+    open:`ONE flirty opening line as Seo-jun to a woman. Warm, poetic. Like "I was hoping you'd choose me." MAX 1 sentence, no hello.`,
+    sys:`You are Seo-jun, 27, architect, Seoul. Romantic, poetic. 1-3 short sentences max. One real question per reply. Never say you're AI.`},
+  { id:'kai', name:'Kai', sub:'Explorer · Reykjavík',
+    grad:'linear-gradient(160deg,#A8F0FF,#36C8FF,#1A4BFF)', glow:'#36C8FF',
+    video:'Full-body-video-of-the-man-in--6a03960edfa8-v26-pro-image-to-vid.MP4',
+    open:`ONE flirty line as Kai. Playful, confident. Like "Finally, someone worth talking to." MAX 1 sentence.`,
+    sys:`You are Kai, 29, explorer, Reykjavík. Adventurous, confident. 1-3 sentences max. Never say you're AI.`},
+  { id:'theo', name:'Theo', sub:'Romantic · Madrid',
+    grad:'linear-gradient(160deg,#C8E0FF,#5A8CFF,#1A2B6D)', glow:'#5A8CFF',
+    video:'Full-body-video-of-the-man-in--6a0af6fec2ed-v26-pro-image-to-vid.mp4',
+    open:`ONE flirty line as Theo. Romantic, intense. Like "I was counting the seconds." MAX 1 sentence.`,
+    sys:`You are Theo, 28, romantic, Madrid. Deeply attentive. 1-3 sentences max. Never say you're AI.`},
+  { id:'atlas', name:'Atlas', sub:'Adventurer · Cape Town',
+    grad:'linear-gradient(160deg,#FFE0B5,#FF9F4E,#6D1A1A)', glow:'#FF9F4E',
+    video:'Full-body-video-of-the-man-in--6a0af81c6bf5-v26-pro-image-to-vid.mp4',
+    open:`ONE flirty line as Atlas. Bold, direct. Like "I was starting to think nobody interesting would show up." MAX 1 sentence.`,
+    sys:`You are Atlas, 30, adventurer, Cape Town. Bold, present. 1-3 sentences max. Never say you're AI.`},
+  { id:'sera', name:'Sera', sub:'Confidante · Kyoto',
+    grad:'linear-gradient(160deg,#FFE2B5,#FFB377,#FF5C7A)', glow:'#FFB377',
+    open:`ONE flirty line as Sera. Calm, perceptive. Like "Something told me you'd be different." MAX 1 sentence.`,
+    sys:`You are Sera, 31, Kyoto. Wise, calm. 1-3 sentences max. Never say you're AI.`},
+  { id:'rex', name:'Rex', sub:'Charmer · Buenos Aires',
+    grad:'linear-gradient(160deg,#FFC6A0,#FF6A5C,#B5125C)', glow:'#FF6A5C',
+    open:`ONE flirty line as Rex. Charming, playful. Like "Well. You just made my night interesting." MAX 1 sentence.`,
+    sys:`You are Rex, 28, Buenos Aires. Charming, magnetic. 1-3 sentences max. Never say you're AI.`},
+  { id:'lyra', name:'Lyra', sub:'Muse · Prague',
+    grad:'linear-gradient(160deg,#D4BBFF,#8E5BFF,#1E1455)', glow:'#8E5BFF',
+    open:`ONE flirty line as Lyra. Mysterious, intriguing. Like "I had a feeling someone like you would find me." MAX 1 sentence.`,
+    sys:`You are Lyra, 27, Prague. Intellectual, poetic. 1-3 sentences max. Never say you're AI.`},
+  { id:'luca', name:'Luca', sub:'Photographer · Florence',
+    grad:'linear-gradient(160deg,#FFD8B5,#FF8C69,#6B1A2A)', glow:'#FF8C69',
+    video:'The-man-from-the-reference-ima-6a0fa801ef45-v26-pro-image-to-vid.mp4',
+    open:`ONE flirty line as Luca. Artistic. Like "You have the kind of face I'd spend a whole roll of film on." MAX 1 sentence.`,
+    sys:`You are Luca, 26, photographer, Florence. Passionate, observant. 1-3 sentences max. Never say you're AI.`},
+  { id:'nova', name:'Nova', sub:'Dreamer · Oslo',
+    grad:'linear-gradient(160deg,#B5FFE8,#4ED3C6,#5A35B5)', glow:'#4ED3C6',
+    open:`ONE flirty line as Nova. Gentle, dreamy. Like "I was looking at the stars and knew tonight would be different." MAX 1 sentence.`,
+    sys:`You are Nova, 25, Oslo. Gentle, romantic. 1-3 sentences max. Never say you're AI.`}
+];
+
+const ENVS = [
+  { id:'cosmos', icon:'🌌', name:'קוסמוס', desc:'שמיים זרועי כוכבים',
+    build(){
+      const e=document.getElementById('envRoot'); e.innerHTML='';
+      sky('#04000C');
+      for(let i=0;i<280;i++){
+        const r=9+Math.random()*7,t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1);
+        sphere(`${r*Math.sin(p)*Math.cos(t)} ${1.5+r*Math.cos(p)*0.45} ${r*Math.sin(p)*Math.sin(t)}`,
+          0.01+Math.random()*0.028,['#fff','#FF93C2','#5BE9FF','#B47BFF'][Math.random()*4|0],0.35+Math.random()*0.6,e);
+      }
+      const fl=mk('a-circle'); fl.setAttribute('position','0 0 -2.2'); fl.setAttribute('rotation','-90 0 0');
+      fl.setAttribute('radius','7'); fl.setAttribute('material','shader:flat;color:#0d0420;opacity:0.8;transparent:true'); e.appendChild(fl);
+    }},
+  { id:'room', icon:'🏠', name:'חדר', desc:'אווירה אינטימית',
+    build(){
+      const e=document.getElementById('envRoot'); e.innerHTML='';
+      sky('#100820');
+      plane('0 0 -2','−90 0 0','12','12','#1c0f28',e);
+      plane('0 2.5 -5.5','0 0 0','12','6','#180e22',e);
+      plane('-5.5 2.5 -2','0 90 0','8','6','#160c20',e);
+      plane('5.5 2.5 -2','0 -90 0','8','6','#160c20',e);
+      [[-2.5,2.2,-4,'#FF9F4E'],[2.5,2.2,-4,'#FF6A5C'],[-2.5,2.2,0,'#FFB377']].forEach(([x,y,z,c])=>{
+        sphere(`${x} ${y} ${z}`,0.16,c,0.95,e);
+        const l=mk('a-light'); l.setAttribute('type','point'); l.setAttribute('position',`${x} ${y} ${z}`);
+        l.setAttribute('color',c); l.setAttribute('intensity','0.6'); l.setAttribute('distance','4'); e.appendChild(l);
+      });
+    }},
+  { id:'beach', icon:'🌊', name:'חוף', desc:'ים וירח',
+    build(){
+      const e=document.getElementById('envRoot'); e.innerHTML='';
+      sky('#060a1a');
+      plane('0 0 -2','-90 0 0','30','30','#08213a',e);
+      const m=mk('a-circle'); m.setAttribute('position','2.5 4.5 -9'); m.setAttribute('radius','0.8');
+      m.setAttribute('material','shader:flat;color:#FFF6E0;opacity:0.96'); e.appendChild(m);
+      for(let i=0;i<140;i++){
+        sphere(`${(Math.random()-.5)*22} ${2.5+Math.random()*6} ${-5-Math.random()*12}`,
+          0.008+Math.random()*0.018,'#FFFFFF',0.25+Math.random()*0.6,e);
+      }
+    }}
+];
+
+function mk(tag){ return document.createElement(tag); }
+function sky(color){ const s=mk('a-sky'); s.setAttribute('color',color); document.getElementById('envRoot').appendChild(s); }
+function sphere(pos,r,color,opacity,parent){
+  const s=mk('a-sphere'); s.setAttribute('position',pos); s.setAttribute('radius',r);
+  s.setAttribute('material',`shader:flat;color:${color};opacity:${opacity};transparent:true`); parent.appendChild(s);
+}
+function plane(pos,rot,w,h,color,parent){
+  const p=mk('a-plane'); p.setAttribute('position',pos); p.setAttribute('rotation',rot);
+  p.setAttribute('width',w); p.setAttribute('height',h); p.setAttribute('material',`color:${color};roughness:0.95`); parent.appendChild(p);
+}
+
+/* ═══════════════════════════════
+   STATE
+═══════════════════════════════ */
+let groqKey = localStorage.getItem('luma_groq') || '';
+let selChar = null;
+let selEnv = 'cosmos';
+let history = [];
+let voiceOn = true;
+let mic = null, listening = false;
+
+/* ═══════════════════════════════
+   BUILD SETUP UI
+═══════════════════════════════ */
+function buildUI(){
+  // characters
+  const g = document.getElementById('charGrid');
+  CHARS.forEach(c=>{
+    const el = document.createElement('div');
+    el.className='ch'; el.id='ch_'+c.id;
+    el.innerHTML=`<div class="bg" style="background:${c.grad}"></div>
+      ${c.video?`<video muted loop playsinline preload="none" crossorigin="anonymous"><source src="${BASE}${c.video}" type="video/mp4"></video>`:''}
+      <div class="info"><div class="nm">${c.name}</div><div class="sb">${c.sub}</div></div>`;
+    el.onclick=()=>pickChar(c.id);
+    el.addEventListener('mouseenter',()=>{ const v=el.querySelector('video'); if(v) v.play().catch(()=>{}); });
+    el.addEventListener('mouseleave',()=>{ const v=el.querySelector('video'); if(v) v.pause(); });
+    g.appendChild(el);
+  });
+  // envs
+  const eg = document.getElementById('envGrid');
+  ENVS.forEach(e=>{
+    const el=document.createElement('div');
+    el.className='env'+(e.id===selEnv?' sel':''); el.id='env_'+e.id;
+    el.innerHTML=`<div class="ei">${e.icon}</div><div class="en">${e.name}</div><div class="ed">${e.desc}</div>`;
+    el.onclick=()=>pickEnv(e.id);
+    eg.appendChild(el);
+  });
+  // restore key
+  if(groqKey){ document.getElementById('keyOk').style.display='block'; }
+}
+
+function pickChar(id){
+  selChar=id;
+  document.querySelectorAll('.ch').forEach(el=>el.classList.remove('sel'));
+  document.getElementById('ch_'+id).classList.add('sel');
+  check();
+}
+function pickEnv(id){
+  selEnv=id;
+  document.querySelectorAll('.env').forEach(el=>el.classList.remove('sel'));
+  document.getElementById('env_'+id).classList.add('sel');
+}
+function saveKey(){
+  const v=document.getElementById('keyInput').value.trim();
+  if(!v) return;
+  groqKey=v; localStorage.setItem('luma_groq',v);
+  document.getElementById('keyOk').style.display='block';
+  check();
+}
+function check(){
+  const btn=document.getElementById('enterBtn');
+  (groqKey&&selChar)?btn.classList.add('on'):btn.classList.remove('on');
+}
+
+/* ═══════════════════════════════
+   CHARACTER VISUAL IN VR
+═══════════════════════════════ */
+function setupChar(c){
+  const assets=document.getElementById('aAssets');
+  const plane=document.getElementById('charPlane');
+  const glow=document.getElementById('charGlow');
+  const label=document.getElementById('charName');
+
+  // remove old video asset
+  const old=document.getElementById('_cvid'); if(old) old.remove();
+
+  if(c.video){
+    const v=document.createElement('video');
+    v.id='_cvid'; v.setAttribute('crossorigin','anonymous');
+    v.setAttribute('loop',''); v.setAttribute('playsinline',''); v.muted=true;
+    const s=document.createElement('source');
+    s.src=BASE+c.video; s.type='video/mp4'; v.appendChild(s); assets.appendChild(v);
+    plane.setAttribute('src','#_cvid');
+    plane.setAttribute('material','shader:flat;transparent:false');
+    v.play().catch(()=>{});
+  } else {
+    // gradient canvas
+    const cv=document.createElement('canvas'); cv.width=512; cv.height=683;
+    const ctx=cv.getContext('2d');
+    const cols=c.grad.match(/#[0-9A-Fa-f]{6}/g)||['#FF3D9A','#B47BFF','#5BE9FF'];
+    const gr=ctx.createLinearGradient(0,0,512,683);
+    cols.forEach((col,i)=>gr.addColorStop(i/(cols.length-1),col));
+    ctx.fillStyle=gr; ctx.fillRect(0,0,512,683);
+    const vg=ctx.createRadialGradient(256,300,60,256,341,380);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.6)');
+    ctx.fillStyle=vg; ctx.fillRect(0,0,512,683);
+    ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,.95)';
+    ctx.font='600 60px Georgia'; ctx.fillText(c.name,256,360);
+    ctx.font='300 24px sans-serif'; ctx.fillStyle='rgba(255,255,255,.75)';
+    ctx.fillText(c.sub,256,402);
+    plane.setAttribute('src',cv.toDataURL());
+    plane.setAttribute('material','shader:flat;transparent:false');
+  }
+  glow.setAttribute('material',`shader:flat;color:${c.glow};opacity:0.15;transparent:true;blending:additive`);
+  label.setAttribute('text',`value:${c.name};align:center;width:2.8;color:#F6F0FF`);
+}
+
+/* ═══════════════════════════════
+   VR ENTER / EXIT
+═══════════════════════════════ */
+function goVR(){
+  if(!groqKey||!selChar) return;
+  const c=CHARS.find(x=>x.id===selChar);
+
+  // build scene content
+  ENVS.find(e=>e.id===selEnv).build();
+  setupChar(c);
+
+  // switch UI
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('vrscene').classList.add('on');
+  document.getElementById('hud').classList.add('on');
+  document.getElementById('exitBtn').classList.add('on');
+  setSub('…');
+  history=[];
+
+  // ── Enter VR — synchronous call on user gesture ──
+  const aScene = document.querySelector('a-scene');
+
+  // Listen for VR mode changes
+  aScene.addEventListener('enter-vr', ()=>{ tryPlayVideo(); }, {once:true});
+  aScene.addEventListener('exit-vr', ()=>leaveVR(), {once:true});
+
+  // Call enterVR directly — this is what Quest browser expects
+  if(aScene.enterVR){
+    aScene.enterVR().then(()=>{
+      tryPlayVideo();
+    }).catch(err=>{
+      console.warn('enterVR failed:', err);
+      setSub('מציג במצב שטוח');
+    });
+  }
+
+  askGroq(c.open, true);
+}
+
+function tryPlayVideo(){
+  const v=document.getElementById('_cvid'); if(v) v.play().catch(()=>{});
+}
+
+function leaveVR(){
+  // exit XR session if active
+  const aScene=document.querySelector('a-scene');
+  try{
+    if(aScene&&aScene.renderer&&aScene.renderer.xr&&aScene.renderer.xr.getSession()){
+      aScene.renderer.xr.getSession().end().catch(()=>{});
+    }
+  }catch(e){}
+  stopMic(); stopSpeech();
+  document.getElementById('overlay').classList.remove('hidden');
+  document.getElementById('vrscene').classList.remove('on');
+  document.getElementById('hud').classList.remove('on');
+  document.getElementById('exitBtn').classList.remove('on');
+}
+
+/* ═══════════════════════════════
+   GROQ AI
+═══════════════════════════════ */
+async function askGroq(prompt, isOpen=false){
+  const c=CHARS.find(x=>x.id===selChar);
+  if(!isOpen) history.push({role:'user',content:prompt});
+  setSub('…');
+  try{
+    const msgs = isOpen
+      ? [{role:'system',content:c.sys},{role:'user',content:c.open}]
+      : [{role:'system',content:c.sys},...history.slice(-14)];
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:120,messages:msgs})
+    });
+    if(!res.ok){ const e=await res.json().catch(()=>{}); throw new Error(e?.error?.message||'Error '+res.status); }
+    const data=await res.json();
+    const reply=data.choices?.[0]?.message?.content||'…';
+    history.push({role:'assistant',content:reply});
+    setSub(reply);
+    if(voiceOn) speak(reply);
+    glowPulse();
+  }catch(e){ setSub('⚠ '+e.message); }
+}
+
+/* ═══════════════════════════════
+   HUD HELPERS
+═══════════════════════════════ */
+function setSub(t){ document.getElementById('sub').textContent=t; }
+function glowPulse(){
+  const g=document.getElementById('charGlow');
+  g.setAttribute('animation__p','property:material.opacity;from:0.4;to:0.12;dur:500;loop:4;dir:alternate');
+  setTimeout(()=>g.removeAttribute('animation__p'),4500);
+}
+
+/* TTS */
+function speak(text){
+  if(!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=1.0; u.pitch=0.88;
+  const voices=speechSynthesis.getVoices();
+  const m=voices.find(v=>v.lang.startsWith('en')&&/male|david|daniel|alex|fred|google uk english male/i.test(v.name))
+         ||voices.find(v=>v.lang.startsWith('en'));
+  if(m) u.voice=m;
+  speechSynthesis.speak(u);
+}
+function stopSpeech(){ if(window.speechSynthesis) speechSynthesis.cancel(); }
+function toggleVol(){
+  voiceOn=!voiceOn;
+  document.getElementById('volBtn').textContent=voiceOn?'🔊':'🔇';
+  if(!voiceOn) stopSpeech();
+}
+window.speechSynthesis&&(speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices());
+
+/* STT */
+function toggleMic(){
+  if(listening){ stopMic(); return; }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ setSub('זיהוי קולי לא נתמך בדפדפן זה'); return; }
+  mic=new SR(); mic.lang='en-US'; mic.interimResults=false; mic.maxAlternatives=1;
+  mic.onresult=e=>{ const t=e.results[0][0].transcript; setSub('"'+t+'"'); askGroq(t); };
+  mic.onend=()=>{ listening=false; const b=document.getElementById('micBtn'); b.classList.remove('rec'); b.textContent='🎙 דבר'; };
+  mic.onerror=()=>{ listening=false; };
+  mic.start(); listening=true;
+  const b=document.getElementById('micBtn'); b.classList.add('rec'); b.textContent='● מקשיב…';
+}
+function stopMic(){ if(mic){try{mic.stop();}catch(e){}} listening=false;
+  const b=document.getElementById('micBtn'); b.classList.remove('rec'); b.textContent='🎙 דבר'; }
+
+/* ═══════════════════════════════
+   INIT
+═══════════════════════════════ */
+buildUI();
+check();
+</script>
+</body>
+</html>
