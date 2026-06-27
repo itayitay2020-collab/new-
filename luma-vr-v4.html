@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>LUMA VR</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#04000C;color:#F6F0FF;font-family:'Space Grotesk',sans-serif}
+body{min-height:100vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+#setup{padding:24px 16px 60px;
+  background:radial-gradient(600px at 80% 0%,rgba(255,61,154,.12),transparent),#04000C;
+  display:flex;flex-direction:column;align-items:center}
+
+h1{font-family:'Instrument Serif',serif;font-size:48px;letter-spacing:.2em;
+  background:linear-gradient(110deg,#FFB8E0,#FF3D9A,#B47BFF);
+  -webkit-background-clip:text;background-clip:text;color:transparent;margin:16px 0 4px}
+.tag{color:rgba(246,240,255,.4);font-size:12px;margin-bottom:24px}
+
+.box{width:100%;max-width:520px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:18px;margin-bottom:14px}
+.box h2{font-size:13px;font-weight:600;color:rgba(246,240,255,.65);margin-bottom:12px}
+
+.keyrow{display:flex;gap:8px}
+.keyrow input{flex:1;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);
+  color:#F6F0FF;border-radius:10px;padding:12px;font-size:14px;font-family:inherit;outline:none}
+.keyrow button{background:#FF3D9A;border:none;color:#fff;padding:0 18px;
+  border-radius:10px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit}
+.keyok{color:#7BFFB0;font-size:12px;margin-top:8px;display:none}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ch{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;
+  aspect-ratio:2/3;border:2px solid transparent;transition:border-color .2s}
+.ch.sel{border-color:#FF3D9A}
+.ch .bg{position:absolute;inset:0;width:100%;height:100%}
+.ch video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ch .info{position:absolute;bottom:0;left:0;right:0;padding:8px;
+  background:linear-gradient(transparent,rgba(0,0,0,.85));z-index:2}
+.ch .nm{font-family:'Instrument Serif',serif;font-size:17px}
+.ch .sb{font-size:9px;opacity:.7;margin-top:1px}
+
+.envs{display:flex;gap:8px}
+.env{flex:1;padding:12px 8px;border-radius:12px;border:2px solid rgba(255,255,255,.1);
+  background:rgba(0,0,0,.2);cursor:pointer;text-align:center;transition:border-color .2s}
+.env.sel{border-color:#5BE9FF}
+.env .ei{font-size:22px}.env .en{font-size:13px;font-weight:600;margin-top:4px}
+.env .ed{font-size:10px;opacity:.5;margin-top:2px}
+
+#goBtn{width:100%;max-width:520px;padding:20px;background:#FF3D9A;border:none;
+  border-radius:16px;color:#fff;font-size:18px;font-weight:700;font-family:inherit;
+  cursor:pointer;-webkit-appearance:none}
+#goBtn:disabled{opacity:.3}
+#goBtn:not(:disabled):active{background:#d4307f}
+
+/* VR container — only built on demand */
+#vrpage{display:none;position:fixed;inset:0;z-index:100;background:#04000C}
+#vrpage.on{display:block}
+
+#hud{position:fixed;bottom:0;left:0;right:0;z-index:120;padding:14px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+#sub{max-width:85vw;text-align:center;font-size:16px;line-height:1.5;
+  background:rgba(4,0,12,.7);padding:10px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.1)}
+.hbtns{display:flex;gap:8px;pointer-events:auto}
+.hbtns button{background:rgba(4,0,12,.7);border:1px solid rgba(255,255,255,.15);
+  color:#F6F0FF;padding:10px 16px;border-radius:10px;font-size:14px;cursor:pointer;font-family:inherit}
+.hbtns button.rec{border-color:#FF3D9A;color:#FF3D9A}
+#exitBtn{position:fixed;top:14px;left:14px;z-index:121;background:rgba(4,0,12,.7);
+  border:1px solid rgba(255,255,255,.15);color:#F6F0FF;padding:9px 14px;border-radius:10px;
+  font-size:13px;cursor:pointer;font-family:inherit;display:none}
+#exitBtn.on{display:block}
+#loadMsg{position:fixed;inset:0;z-index:130;display:none;align-items:center;justify-content:center;
+  background:#04000C;color:#F6F0FF;font-size:18px;text-align:center;padding:20px}
+#loadMsg.on{display:flex}
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>LUMA</h1>
+  <div class="tag">VR COMPANION · QUEST 3</div>
+
+  <div class="box">
+    <h2>① GROQ API KEY</h2>
+    <div class="keyrow">
+      <input id="keyInput" type="password" placeholder="gsk_..."/>
+      <button type="button" id="saveKeyBtn">שמור</button>
+    </div>
+    <div class="keyok" id="keyOk">✓ מפתח שמור</div>
+    <div style="font-size:11px;color:rgba(246,240,255,.35);margin-top:8px">
+      בלי מפתח — מצב הדגמה (משפטים קבועים). מפתח חינמי לשיחה אמיתית: <a href="https://console.groq.com/keys" target="_blank" style="color:#5BE9FF">console.groq.com/keys</a>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>② בחר דמות</h2>
+    <div class="grid" id="charGrid"></div>
+  </div>
+
+  <div class="box">
+    <h2>③ בחר סביבה</h2>
+    <div class="envs" id="envGrid"></div>
+  </div>
+
+  <button type="button" id="goBtn" disabled>כנס ל-VR 🥽</button>
+</div>
+
+<!-- VR page built dynamically -->
+<div id="vrpage"></div>
+<button type="button" id="exitBtn">✕ צא</button>
+<div id="hud" style="display:none">
+  <div id="sub">…</div>
+  <div class="hbtns">
+    <button type="button" id="micBtn">🎙 דבר</button>
+    <button type="button" id="volBtn">🔊</button>
+  </div>
+</div>
+<div id="loadMsg">טוען VR…</div>
+
+<script>
+/* ═══ DATA ═══ */
+const BASE='https://itayitay2020-collab.github.io/new-/';
+const CHARS=[
+  {id:'seojun',name:'Seo-jun',sub:'Architect · Seoul',grad:'linear-gradient(160deg,#FFB8E0,#FF3D9A,#6D2BFF)',glow:'#FF3D9A',video:'Full-body-video-of-the-man-in--6a025d2f94fe-o3-pro-reference-to.mp4',open:`ONE short flirty opening line as Seo-jun. Like "I was hoping you'd choose me." MAX 1 sentence.`,sys:`You are Seo-jun, 27, architect, Seoul. Romantic, poetic. 1-3 short sentences. Never say you're AI.`},
+  {id:'kai',name:'Kai',sub:'Explorer · Reykjavík',grad:'linear-gradient(160deg,#A8F0FF,#36C8FF,#1A4BFF)',glow:'#36C8FF',video:'Full-body-video-of-the-man-in--6a03960edfa8-v26-pro-image-to-vid.MP4',open:`ONE flirty line as Kai. Like "Finally, someone worth talking to." MAX 1 sentence.`,sys:`You are Kai, 29, explorer. Adventurous. 1-3 sentences. Never say you're AI.`},
+  {id:'theo',name:'Theo',sub:'Romantic · Madrid',grad:'linear-gradient(160deg,#C8E0FF,#5A8CFF,#1A2B6D)',glow:'#5A8CFF',video:'Full-body-video-of-the-man-in--6a0af6fec2ed-v26-pro-image-to-vid.mp4',open:`ONE flirty line as Theo. Like "I was counting the seconds." MAX 1 sentence.`,sys:`You are Theo, 28, Madrid. Romantic, intense. 1-3 sentences. Never say you're AI.`},
+  {id:'atlas',name:'Atlas',sub:'Adventurer · Cape Town',grad:'linear-gradient(160deg,#FFE0B5,#FF9F4E,#6D1A1A)',glow:'#FF9F4E',video:'Full-body-video-of-the-man-in--6a0af81c6bf5-v26-pro-image-to-vid.mp4',open:`ONE flirty line as Atlas. Like "I was starting to think nobody interesting would show up." MAX 1 sentence.`,sys:`You are Atlas, 30, Cape Town. Bold. 1-3 sentences. Never say you're AI.`},
+  {id:'sera',name:'Sera',sub:'Confidante · Kyoto',grad:'linear-gradient(160deg,#FFE2B5,#FFB377,#FF5C7A)',glow:'#FFB377',open:`ONE flirty line as Sera. Like "Something told me you'd be different." MAX 1 sentence.`,sys:`You are Sera, 31, Kyoto. Wise, calm. 1-3 sentences. Never say you're AI.`},
+  {id:'rex',name:'Rex',sub:'Charmer · Buenos Aires',grad:'linear-gradient(160deg,#FFC6A0,#FF6A5C,#B5125C)',glow:'#FF6A5C',open:`ONE flirty line as Rex. Like "Well. You just made my night interesting." MAX 1 sentence.`,sys:`You are Rex, 28, Buenos Aires. Charming. 1-3 sentences. Never say you're AI.`},
+  {id:'lyra',name:'Lyra',sub:'Muse · Prague',grad:'linear-gradient(160deg,#D4BBFF,#8E5BFF,#1E1455)',glow:'#8E5BFF',open:`ONE flirty line as Lyra. Like "I had a feeling someone like you would find me." MAX 1 sentence.`,sys:`You are Lyra, 27, Prague. Intellectual. 1-3 sentences. Never say you're AI.`},
+  {id:'luca',name:'Luca',sub:'Photographer · Florence',grad:'linear-gradient(160deg,#FFD8B5,#FF8C69,#6B1A2A)',glow:'#FF8C69',video:'The-man-from-the-reference-ima-6a0fa801ef45-v26-pro-image-to-vid.mp4',open:`ONE flirty line as Luca. Like "You have the kind of face I'd spend a whole roll of film on." MAX 1 sentence.`,sys:`You are Luca, 26, photographer, Florence. Passionate. 1-3 sentences. Never say you're AI.`},
+  {id:'nova',name:'Nova',sub:'Dreamer · Oslo',grad:'linear-gradient(160deg,#B5FFE8,#4ED3C6,#5A35B5)',glow:'#4ED3C6',open:`ONE flirty line as Nova. Like "I was looking at the stars and knew tonight would be different." MAX 1 sentence.`,sys:`You are Nova, 25, Oslo. Gentle. 1-3 sentences. Never say you're AI.`}
+];
+const ENVS=[
+  {id:'cosmos',icon:'🌌',name:'קוסמוס',desc:'כוכבים',sky:'#04000C'},
+  {id:'room',icon:'🏠',name:'חדר',desc:'אינטימי',sky:'#100820'},
+  {id:'beach',icon:'🌊',name:'חוף',desc:'ים וירח',sky:'#060a1a'}
+];
+
+/* ═══ STATE ═══ */
+let groqKey=localStorage.getItem('luma_groq')||'';
+let selChar=null, selEnv='cosmos';
+let history=[], voiceOn=true, mic=null, listening=false, aframeLoaded=false;
+
+/* ═══ BUILD MENU (pure HTML, no A-Frame) ═══ */
+const grid=document.getElementById('charGrid');
+CHARS.forEach(c=>{
+  const el=document.createElement('div'); el.className='ch'; el.id='ch_'+c.id;
+  el.innerHTML=`<div class="bg" style="background:${c.grad}"></div>
+    ${c.video?`<video muted loop playsinline preload="none"><source src="${BASE}${c.video}"></video>`:''}
+    <div class="info"><div class="nm">${c.name}</div><div class="sb">${c.sub}</div></div>`;
+  el.onclick=()=>{
+    selChar=c.id;
+    document.querySelectorAll('.ch').forEach(x=>x.classList.remove('sel'));
+    el.classList.add('sel');
+    refreshBtn();
+    const v=el.querySelector('video'); if(v) v.play().catch(()=>{});
+  };
+  grid.appendChild(el);
+});
+const eg=document.getElementById('envGrid');
+ENVS.forEach(e=>{
+  const el=document.createElement('div'); el.className='env'+(e.id===selEnv?' sel':''); el.id='env_'+e.id;
+  el.innerHTML=`<div class="ei">${e.icon}</div><div class="en">${e.name}</div><div class="ed">${e.desc}</div>`;
+  el.onclick=()=>{
+    selEnv=e.id;
+    document.querySelectorAll('.env').forEach(x=>x.classList.remove('sel'));
+    el.classList.add('sel');
+  };
+  eg.appendChild(el);
+});
+if(groqKey) document.getElementById('keyOk').style.display='block';
+
+function refreshBtn(){
+  document.getElementById('goBtn').disabled=!selChar;
+}
+function applyKey(v){
+  v=(v||'').trim();
+  groqKey=v;
+  if(v){ localStorage.setItem('luma_groq',v); document.getElementById('keyOk').style.display='block'; }
+  else { document.getElementById('keyOk').style.display='none'; }
+  refreshBtn();
+}
+// auto-save as you type — no need to press שמור
+document.getElementById('keyInput').addEventListener('input',e=>applyKey(e.target.value));
+document.getElementById('saveKeyBtn').onclick=()=>applyKey(document.getElementById('keyInput').value);
+// if a key was already stored, prefill the field so it's clearly active
+if(groqKey){ document.getElementById('keyInput').value=groqKey; }
+
+/* ═══ LOAD A-FRAME ON DEMAND, THEN ENTER VR ═══ */
+document.getElementById('goBtn').onclick=()=>{
+  if(!selChar) return;
+  document.getElementById('loadMsg').classList.add('on');
+
+  if(aframeLoaded){ buildAndEnterVR(); return; }
+
+  const s=document.createElement('script');
+  s.src='https://aframe.io/releases/1.5.0/aframe.min.js';
+  s.onload=()=>{ aframeLoaded=true; setTimeout(buildAndEnterVR,300); };
+  s.onerror=()=>{ document.getElementById('loadMsg').textContent='שגיאה בטעינת VR — בדוק חיבור אינטרנט'; };
+  document.head.appendChild(s);
+};
+
+function buildAndEnterVR(){
+  const c=CHARS.find(x=>x.id===selChar);
+  const env=ENVS.find(e=>e.id===selEnv);
+
+  // build scene HTML
+  let stars='';
+  if(selEnv==='cosmos'){
+    for(let i=0;i<200;i++){
+      const r=9+Math.random()*7,t=Math.random()*6.28,p=Math.acos(2*Math.random()-1);
+      stars+=`<a-sphere position="${(r*Math.sin(p)*Math.cos(t)).toFixed(1)} ${(1.5+r*Math.cos(p)*0.45).toFixed(1)} ${(r*Math.sin(p)*Math.sin(t)).toFixed(1)}" radius="${(0.01+Math.random()*0.025).toFixed(3)}" material="shader:flat;color:${['#fff','#FF93C2','#5BE9FF'][Math.random()*3|0]};opacity:0.7;transparent:true"></a-sphere>`;
+    }
+  }
+  let envExtra='';
+  if(selEnv==='room'){
+    envExtra=`<a-plane rotation="-90 0 0" width="12" height="12" position="0 0 -2" material="color:#1c0f28"></a-plane>
+      <a-plane width="12" height="5" position="0 2.5 -5.5" material="color:#180e22"></a-plane>`;
+  }
+  if(selEnv==='beach'){
+    envExtra=`<a-plane rotation="-90 0 0" width="30" height="30" position="0 0 -6" material="color:#08213a;roughness:0.3"></a-plane>
+      <a-circle position="2.5 4.5 -9" radius="0.8" material="shader:flat;color:#FFF6E0"></a-circle>`;
+  }
+
+  const videoAsset=c.video?`<video id="_cv" crossorigin="anonymous" loop muted playsinline src="${BASE}${c.video}"></video>`:'';
+  let charSrc;
+  if(c.video){ charSrc='#_cv'; }
+  else {
+    const cv=document.createElement('canvas'); cv.width=512; cv.height=683;
+    const ctx=cv.getContext('2d');
+    const cols=c.grad.match(/#[0-9A-Fa-f]{6}/g);
+    const gr=ctx.createLinearGradient(0,0,512,683);
+    cols.forEach((col,i)=>gr.addColorStop(i/(cols.length-1),col));
+    ctx.fillStyle=gr; ctx.fillRect(0,0,512,683);
+    ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='600 56px Georgia';
+    ctx.fillText(c.name,256,350);
+    charSrc=cv.toDataURL();
+  }
+
+  document.getElementById('vrpage').innerHTML=`
+    <a-scene vr-mode-ui="enabled:true" loading-screen="enabled:false"
+      renderer="colorManagement:true;antialias:true" background="color:${env.sky}">
+      <a-assets timeout="8000">${videoAsset}</a-assets>
+      <a-sky color="${env.sky}"></a-sky>
+      ${stars}${envExtra}
+      <a-video src="${charSrc}" width="1.35" height="1.8" position="0 1.45 -2.2" material="shader:flat"></a-video>
+      <a-plane width="1.65" height="2.1" position="0 1.45 -2.23" material="shader:flat;color:${c.glow};opacity:0.15;transparent:true;blending:additive"></a-plane>
+      <a-text value="${c.name}" align="center" width="3" position="0 0.35 -2.2" color="#F6F0FF"></a-text>
+      <a-light type="ambient" color="#3a2050" intensity="1.2"></a-light>
+      <a-light type="point" position="0 3 -1" color="#FF93C2" intensity="0.7"></a-light>
+      <a-entity position="0 0 0"><a-camera look-controls wasd-controls="enabled:false" position="0 1.6 0"></a-camera></a-entity>
+    </a-scene>`;
+
+  document.getElementById('setup').style.display='none';
+  document.getElementById('vrpage').classList.add('on');
+  document.getElementById('exitBtn').classList.add('on');
+  document.getElementById('hud').style.display='flex';
+  document.getElementById('loadMsg').classList.remove('on');
+  history=[];
+  setSub('לחץ "Enter VR" למטה כדי להיכנס · או דבר כאן');
+
+  const scene=document.querySelector('a-scene');
+  scene.addEventListener('loaded',()=>{
+    const v=document.getElementById('_cv'); if(v) v.play().catch(()=>{});
+    askGroq(c.open,true);
+  });
+  scene.addEventListener('enter-vr',()=>{ const v=document.getElementById('_cv'); if(v) v.play().catch(()=>{}); });
+  scene.addEventListener('exit-vr',leaveVR);
+}
+
+document.getElementById('exitBtn').onclick=leaveVR;
+function leaveVR(){
+  stopMic(); stopSpeech();
+  try{ const s=document.querySelector('a-scene'); if(s&&s.is&&s.is('vr-mode')) s.exitVR(); }catch(e){}
+  document.getElementById('vrpage').classList.remove('on');
+  document.getElementById('vrpage').innerHTML='';
+  document.getElementById('exitBtn').classList.remove('on');
+  document.getElementById('hud').style.display='none';
+  document.getElementById('setup').style.display='flex';
+}
+
+/* ═══ GROQ ═══ */
+const DEMO_LINES={
+  seojun:["I was hoping you'd choose me.","Tell me — what brought you here tonight?","There's something about the way you pause before you speak."],
+  kai:["Finally, someone worth talking to.","So, what's the most reckless thing you've done lately?","You don't strike me as someone who plays it safe."],
+  theo:["I was counting the seconds.","What's a thought you can't shake today?","Say that again — I want to remember how you said it."],
+  atlas:["I was starting to think nobody interesting would show up.","Where would you go right now if you could go anywhere?","You've got that look of someone with a story."],
+  sera:["Something told me you'd be different.","What's something you've never said out loud?","I'm listening. Really listening."],
+  rex:["Well. You just made my night interesting.","Careful — I'm easy to talk to and hard to forget.","What makes you smile when no one's watching?"],
+  lyra:["I had a feeling someone like you would find me.","If your mood were a color tonight, what would it be?","You think in layers. I can tell."],
+  luca:["You have the kind of face I'd spend a whole roll of film on.","What's the last thing that made you stop and stare?","Light finds you well. Has anyone told you that?"],
+  nova:["I was looking at the stars and knew tonight would be different.","What's a small thing that made today bearable?","Close your eyes a second — what do you hear?"]
+};
+let demoIdx=0;
+async function askGroq(prompt,isOpen=false){
+  const c=CHARS.find(x=>x.id===selChar);
+  if(!isOpen) history.push({role:'user',content:prompt});
+  setSub('…');
+
+  // ── DEMO MODE: no key → use canned lines ──
+  if(!groqKey){
+    const lines=DEMO_LINES[c.id]||["Hello."];
+    const reply = isOpen ? lines[0] : lines[(demoIdx++ % (lines.length-1))+1];
+    setTimeout(()=>{ setSub(reply); if(voiceOn) speak(reply); }, 500);
+    return;
+  }
+
+  try{
+    const msgs=isOpen?[{role:'system',content:c.sys},{role:'user',content:c.open}]
+      :[{role:'system',content:c.sys},...history.slice(-14)];
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:120,messages:msgs})
+    });
+    if(!res.ok) throw new Error('Groq '+res.status);
+    const data=await res.json();
+    const reply=data.choices?.[0]?.message?.content||'…';
+    history.push({role:'assistant',content:reply});
+    setSub(reply); if(voiceOn) speak(reply);
+  }catch(e){ setSub('⚠ '+e.message); }
+}
+function setSub(t){ document.getElementById('sub').textContent=t; }
+
+/* ═══ VOICE ═══ */
+function speak(text){
+  if(!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text); u.rate=1; u.pitch=0.88;
+  const m=speechSynthesis.getVoices().find(v=>v.lang.startsWith('en')&&/male|david|daniel|alex/i.test(v.name))||speechSynthesis.getVoices().find(v=>v.lang.startsWith('en'));
+  if(m) u.voice=m; speechSynthesis.speak(u);
+}
+function stopSpeech(){ window.speechSynthesis?.cancel(); }
+document.getElementById('volBtn').onclick=()=>{
+  voiceOn=!voiceOn;
+  document.getElementById('volBtn').textContent=voiceOn?'🔊':'🔇';
+  if(!voiceOn) stopSpeech();
+};
+window.speechSynthesis&&(speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices());
+
+document.getElementById('micBtn').onclick=()=>{
+  if(listening){ stopMic(); return; }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ setSub('זיהוי קולי לא נתמך'); return; }
+  mic=new SR(); mic.lang='en-US'; mic.interimResults=false;
+  mic.onresult=e=>{ const t=e.results[0][0].transcript; setSub('"'+t+'"'); askGroq(t); };
+  mic.onend=()=>{ listening=false; const b=document.getElementById('micBtn'); b.classList.remove('rec'); b.textContent='🎙 דבר'; };
+  mic.start(); listening=true;
+  document.getElementById('micBtn').classList.add('rec');
+  document.getElementById('micBtn').textContent='● מקשיב…';
+};
+function stopMic(){ try{mic?.stop();}catch(e){} listening=false;
+  const b=document.getElementById('micBtn'); if(b){b.classList.remove('rec'); b.textContent='🎙 דבר';} }
+</script>
+</body>
+</html>
