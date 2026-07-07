@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DREAM PORTAL — מדרגות לשמיים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;500;700&family=Heebo:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0d1e;
+    --deep:#11152e;
+    --gold:#e9c777;
+    --gold-hi:#ffe9b0;
+    --mist:#8b93b8;
+    --white:#f4f2ec;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink);font-family:'Heebo',sans-serif;color:var(--white)}
+
+  /* ===== Entry screen ===== */
+  #entry{
+    position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;padding:24px;
+    background:
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgba(233,199,119,.22), transparent 60%),
+      radial-gradient(ellipse 130% 90% at 50% 115%, #1a2047 0%, var(--ink) 62%);
+    transition:opacity .8s ease;
+  }
+  #entry.hide{opacity:0;pointer-events:none}
+
+  /* the ceiling-iris: a portal that breathes above the title */
+  .iris{
+    width:150px;height:150px;border-radius:50%;margin-bottom:34px;position:relative;
+    background:
+      radial-gradient(circle at 50% 38%, #fff7e0 0%, #ffd98a 22%, #b8802f 46%, rgba(20,24,52,0) 72%);
+    box-shadow:0 0 60px 10px rgba(233,199,119,.35), inset 0 0 30px rgba(255,255,255,.5);
+    animation:breathe 4.5s ease-in-out infinite;
+  }
+  .iris::before,.iris::after{
+    content:"";position:absolute;top:-6px;bottom:-6px;width:52%;
+    background:var(--ink);transition:transform 1s;
+  }
+  .iris::before{right:50%;border-radius:80px 0 0 80px;animation:openR 5s ease-in-out infinite}
+  .iris::after{left:50%;border-radius:0 80px 80px 0;animation:openL 5s ease-in-out infinite}
+  @keyframes openR{0%,15%{transform:translateX(0)}45%,75%{transform:translateX(-105%)}100%{transform:translateX(0)}}
+  @keyframes openL{0%,15%{transform:translateX(0)}45%,75%{transform:translateX(105%)}100%{transform:translateX(0)}}
+  @keyframes breathe{0%,100%{box-shadow:0 0 45px 6px rgba(233,199,119,.28)}50%{box-shadow:0 0 85px 18px rgba(233,199,119,.5)}}
+
+  .kicker{font-size:13px;letter-spacing:.45em;color:var(--mist);margin-bottom:14px;font-weight:300}
+  h1{
+    font-family:'Frank Ruhl Libre',serif;font-weight:700;
+    font-size:clamp(40px,9vw,72px);line-height:1.05;color:var(--white);
+  }
+  h1 em{font-style:normal;color:var(--gold)}
+  .sub{max-width:430px;margin:18px auto 34px;color:var(--mist);font-weight:300;font-size:16px;line-height:1.75}
+
+  .envs{display:flex;gap:12px;margin-bottom:36px;flex-wrap:wrap;justify-content:center}
+  .env{
+    border:1px solid rgba(233,199,119,.35);border-radius:14px;padding:12px 20px;
+    font-size:14px;color:var(--gold);background:rgba(233,199,119,.06);cursor:default;
+  }
+  .env.locked{border-color:rgba(139,147,184,.25);color:var(--mist);background:transparent}
+  .env.locked small{display:block;font-size:10px;letter-spacing:.2em;margin-top:2px;opacity:.7}
+  .env.active{box-shadow:0 0 22px rgba(233,199,119,.25);background:rgba(233,199,119,.14)}
+
+  #startBtn{
+    font-family:'Heebo',sans-serif;font-weight:600;font-size:19px;letter-spacing:.05em;
+    color:var(--ink);background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+    border:none;border-radius:999px;padding:18px 58px;cursor:pointer;
+    box-shadow:0 6px 30px rgba(233,199,119,.35);transition:transform .18s, box-shadow .18s;
+  }
+  #startBtn:hover{transform:translateY(-2px);box-shadow:0 10px 40px rgba(233,199,119,.5)}
+  #startBtn:active{transform:translateY(0)}
+  #startBtn:disabled{opacity:.5;cursor:wait}
+
+  .row2{display:flex;gap:18px;align-items:center;margin-top:20px}
+  #flatBtn{
+    background:none;border:none;color:var(--mist);font-size:13px;cursor:pointer;
+    text-decoration:underline;text-underline-offset:4px;font-family:'Heebo',sans-serif;
+  }
+  #musicToggle{
+    background:none;border:1px solid rgba(139,147,184,.35);border-radius:999px;
+    color:var(--mist);font-size:13px;padding:7px 16px;cursor:pointer;font-family:'Heebo',sans-serif;
+  }
+  #musicToggle.on{color:var(--gold);border-color:rgba(233,199,119,.5)}
+
+  #status{margin-top:22px;font-size:13px;color:var(--mist);min-height:20px;font-weight:300}
+  #status.err{color:#e08a8a}
+
+  #sceneWrap{position:fixed;inset:0;z-index:1}
+  @media (prefers-reduced-motion: reduce){
+    .iris,.iris::before,.iris::after{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<div id="entry">
+  <div class="iris"></div>
+  <div class="kicker">MIXED REALITY · QUEST 3</div>
+  <h1>DREAM<br><em>PORTAL</em></h1>
+  <p class="sub">התקרה של החדר שלך נפתחת. גרם מדרגות זהב יורד מהשמיים, ורקדני אור יורדים בו — אל תוך החדר, סביבך.</p>
+
+  <div class="envs">
+    <div class="env active">✦ מדרגות לשמיים</div>
+    <div class="env locked">חלל עמוק<small>בקרוב</small></div>
+    <div class="env locked">מתחת לים<small>בקרוב</small></div>
+  </div>
+
+  <button id="startBtn">פתיחת התקרה</button>
+  <div class="row2">
+    <button id="musicToggle" class="on">♪ מוזיקה: פועלת</button>
+    <button id="flatBtn">תצוגה מקדימה במחשב</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<div id="sceneWrap"></div>
+
+<script>
+/* =========================================================
+   DREAM PORTAL v1 — Mixed Reality stairway + light dancers
+   Pattern: A-Frame is loaded ONLY after button press (v4 lesson)
+   ========================================================= */
+
+const HOLE = { x: 0, y: 2.55, z: -1.6, r: 1.35 };   // portal in the ceiling
+const STEP = { w: 1.15, h: 0.085, d: 0.34, rise: 0.165 };
+const DANCER_COLORS = ['#ffe9b0', '#ff9ec7', '#8fe3ff', '#c9a6ff'];
+let musicOn = true;
+let flatMode = false;
+
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startBtn');
+const musicBtn = document.getElementById('musicToggle');
+
+musicBtn.addEventListener('click', () => {
+  musicOn = !musicOn;
+  musicBtn.classList.toggle('on', musicOn);
+  musicBtn.textContent = musicOn ? '♪ מוזיקה: פועלת' : '♪ מוזיקה: כבויה';
+  if (window.__audio) window.__audio.setMuted(!musicOn);
+});
+
+function setStatus(t, err){ statusEl.textContent = t; statusEl.classList.toggle('err', !!err); }
+
+/* ---------------------------------------------------------------
+   IMPORTANT WebXR rule: navigator.xr.requestSession (triggered here
+   via scene.enterAR()) must fire with as few async hops as possible
+   after the user's click, or the browser silently drops the "this
+   was a real tap" permission and the session request does nothing.
+   So we preload A-Frame + build the scene + check AR support in the
+   BACKGROUND the moment the page opens. By the time the person taps
+   the button, enterAR() is the very first thing the click does.
+   --------------------------------------------------------------- */
+let sceneReady = false;
+let arSupported = null; // null = still checking
+
+const flatBtn = document.getElementById('flatBtn');
+startBtn.disabled = true;
+flatBtn.disabled = true;
+setStatus('טוען את העולם ברקע…');
+
+if (navigator.xr && navigator.xr.isSessionSupported){
+  navigator.xr.isSessionSupported('immersive-ar').then(ok=>{
+    arSupported = ok; refreshButtons();
+  }).catch(()=>{ arSupported = false; refreshButtons(); });
+} else {
+  arSupported = false;
+}
+
+const AFRAME_SOURCES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/aframe/1.7.1/aframe.min.js',
+  'https://cdn.jsdelivr.net/npm/aframe@1.7.1/dist/aframe.min.js',
+  'https://aframe.io/releases/1.7.1/aframe.min.js'
+];
+loadAframe(AFRAME_SOURCES, 0);
+
+function loadAframe(sources, i){
+  if (i >= sources.length){
+    setStatus('לא הצלחתי לטעון את מנוע התלת-ממד מאף אחד משלושה שרתים. נסה לרענן את הדף, או לבדוק אם רשת ה-WiFi/ה-Quest חוסמת קבצים חיצוניים.', true);
+    return;
+  }
+  const s = document.createElement('script');
+  s.src = sources[i];
+  s.onload = () => buildScene(onSceneReady);
+  s.onerror = () => { s.remove(); loadAframe(sources, i+1); };
+  document.head.appendChild(s);
+}
+
+function onSceneReady(){ sceneReady = true; refreshButtons(); }
+
+function refreshButtons(){
+  if (!sceneReady){ return; } // still loading, keep buttons disabled
+  flatBtn.disabled = false;
+  if (arSupported === null){ setStatus('בודק תמיכה ב-Passthrough…'); return; }
+  if (arSupported){
+    startBtn.disabled = false;
+    setStatus('');
+  } else {
+    startBtn.disabled = true;
+    setStatus('המכשיר הזה לא תומך ב-Passthrough. פתח את הקישור בתוך דפדפן ה-Quest עצמו (לא מסך שיתוף/מחשב) — או השתמש בתצוגה המקדימה.', true);
+  }
+}
+
+function unlockAudio(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const c = new Ctx(); c.resume();
+    window.__audioUnlock = c; // keeps the tab "allowed to play audio" for later contexts
+  }catch(e){}
+}
+
+startBtn.addEventListener('click', () => {
+  if (!sceneReady || !arSupported) return;
+  flatMode = false;
+  unlockAudio();
+  // enterAR() must be the FIRST xr call in the click handler, no awaits before it
+  const p = document.getElementById('scene').enterAR();
+  if (p && p.catch) p.catch(err => setStatus('ה-Quest חסם את הכניסה ל-AR: ' + err.message, true));
+});
+flatBtn.addEventListener('click', () => {
+  if (!sceneReady) return;
+  unlockAudio();
+  enterFlat();
+});
+
+/* ---------------- procedural audio (no assets needed) ---------------- */
+function createAudio(){
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+  let muted = !musicOn, running = false;
+
+  function setMuted(m){ muted = m; master.gain.linearRampToValueAtTime(m?0:0.5, ctx.currentTime+0.5); }
+
+  // heavenly pad: slow chord cycle
+  const CHORDS = [[261.6,329.6,392.0],[196.0,246.9,392.0],[220.0,261.6,329.6],[174.6,261.6,349.2]]; // C G Am F
+  function pad(freq, t0, dur){
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+    o1.type='sawtooth'; o2.type='sawtooth';
+    o1.frequency.value=freq; o2.frequency.value=freq*1.004;
+    const f = ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=900; f.Q.value=0.6;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0,t0);
+    g.gain.linearRampToValueAtTime(0.045,t0+dur*0.35);
+    g.gain.linearRampToValueAtTime(0.0,t0+dur);
+    o1.connect(f); o2.connect(f); f.connect(g); g.connect(master);
+    o1.start(t0); o2.start(t0); o1.stop(t0+dur+0.1); o2.stop(t0+dur+0.1);
+  }
+  function kick(t0){
+    const o = ctx.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(140,t0); o.frequency.exponentialRampToValueAtTime(42,t0+0.14);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.5,t0); g.gain.exponentialRampToValueAtTime(0.001,t0+0.22);
+    o.connect(g); g.connect(master); o.start(t0); o.stop(t0+0.25);
+  }
+  function shimmer(t0){
+    const b = ctx.createBuffer(1, ctx.sampleRate*0.08, ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
+    const src = ctx.createBufferSource(); src.buffer=b;
+    const f = ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=6500;
+    const g = ctx.createGain(); g.gain.value=0.10;
+    src.connect(f); f.connect(g); g.connect(master); src.start(t0);
+  }
+
+  let beatOn = false;
+  function start(){
+    if (running) return; running = true;
+    if (ctx.state==='suspended') ctx.resume();
+    master.gain.linearRampToValueAtTime(muted?0:0.5, ctx.currentTime+1.5);
+    const BAR = 2.4; // seconds per chord
+    let barIdx = 0, nextBar = ctx.currentTime + 0.1;
+    setInterval(()=>{
+      while (nextBar < ctx.currentTime + 3){
+        const ch = CHORDS[barIdx % CHORDS.length];
+        ch.forEach(f=>{ pad(f, nextBar, BAR*1.15); pad(f*2, nextBar, BAR*1.15); });
+        if (beatOn){
+          for(let b=0;b<4;b++){ kick(nextBar + b*(BAR/4)); if(b%2===1) shimmer(nextBar + b*(BAR/4)); }
+        }
+        nextBar += BAR; barIdx++;
+      }
+    }, 800);
+  }
+  return { start, setMuted, enableBeat:()=>{beatOn=true;}, ctx };
+}
+
+/* ---------------- scene ---------------- */
+function buildScene(onReady){
+  const THREE = AFRAME.THREE;
+
+  /* --- occluder material: writes depth, no color => passthrough shows --- */
+  function occluderMat(){
+    return new THREE.MeshBasicMaterial({ colorWrite:false });
+  }
+
+  /* ceiling: huge plane with a circular hole, invisible occluder */
+  AFRAME.registerComponent('holed-ceiling', {
+    init(){
+      const shape = new THREE.Shape();
+      shape.moveTo(-25,-25); shape.lineTo(25,-25); shape.lineTo(25,25); shape.lineTo(-25,25); shape.closePath();
+      const hole = new THREE.Path();
+      hole.absarc(0,0,HOLE.r,0,Math.PI*2,true);
+      shape.holes.push(hole);
+      const geo = new THREE.ShapeGeometry(shape, 48);
+      geo.rotateX(Math.PI/2);
+      const mesh = new THREE.Mesh(geo, occluderMat());
+      mesh.renderOrder = -10;
+      this.el.setObject3D('mesh', mesh);
+    }
+  });
+
+  /* two sliding half-disc lids that keep the hole closed, then part */
+  AFRAME.registerComponent('portal-lid', {
+    schema:{ side:{type:'string'} },
+    init(){
+      const s = this.data.side==='r'?1:-1;
+      const geo = new THREE.CircleGeometry(HOLE.r*1.02, 40, s>0? -Math.PI/2 : Math.PI/2, Math.PI);
+      geo.rotateX(Math.PI/2);
+      const mesh = new THREE.Mesh(geo, occluderMat());
+      mesh.renderOrder = -9;
+      this.el.setObject3D('mesh', mesh);
+    }
+  });
+
+  /* canvas textures */
+  function canvasTex(draw, w=256, h=256){
+    const c = document.createElement('canvas'); c.width=w; c.height=h;
+    draw(c.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+  const skyTex = canvasTex((g,w,h)=>{
+    const gr = g.createLinearGradient(0,0,0,h);
+    gr.addColorStop(0,  '#2c4bb8');
+    gr.addColorStop(0.45,'#6f9ae0');
+    gr.addColorStop(0.75,'#f3d9a0');
+    gr.addColorStop(1,  '#ffedc4');
+    g.fillStyle = gr; g.fillRect(0,0,w,h);
+  }, 4, 512);
+  const glowTex = canvasTex((g,w,h)=>{
+    const gr = g.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);
+    gr.addColorStop(0,'rgba(255,246,214,1)');
+    gr.addColorStop(0.35,'rgba(255,224,150,0.55)');
+    gr.addColorStop(1,'rgba(255,224,150,0)');
+    g.fillStyle=gr; g.fillRect(0,0,w,h);
+  });
+  const cloudTex = canvasTex((g,w,h)=>{
+    g.clearRect(0,0,w,h);
+    for(let i=0;i<26;i++){
+      const x=w*0.5+(Math.random()-0.5)*w*0.7, y=h*0.55+(Math.random()-0.5)*h*0.4, r=20+Math.random()*46;
+      const gr=g.createRadialGradient(x,y,0,x,y,r);
+      gr.addColorStop(0,'rgba(255,255,255,0.85)'); gr.addColorStop(1,'rgba(255,255,255,0)');
+      g.fillStyle=gr; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+    }
+  },512,256);
+  const floorGlowTex = canvasTex((g,w,h)=>{
+    const gr=g.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);
+    gr.addColorStop(0,'rgba(255,230,170,0.55)');
+    gr.addColorStop(0.6,'rgba(255,210,130,0.18)');
+    gr.addColorStop(1,'rgba(255,210,130,0)');
+    g.fillStyle=gr; g.fillRect(0,0,w,h);
+  });
+
+  /* build the scene markup */
+  const wrap = document.getElementById('sceneWrap');
+  wrap.innerHTML = `
+  <a-scene id="scene"
+      webxr="optionalFeatures: local-floor, bounded-floor"
+      xr-mode-ui="enabled: false"
+      renderer="alpha: true; colorManagement: true; antialias: true; foveationLevel: 1"
+      background="">
+    <a-entity id="rig">
+      <a-camera id="cam" position="0 1.6 0" wasd-controls look-controls></a-camera>
+      <a-entity laser-controls="hand: right" raycaster="objects: .none"></a-entity>
+    </a-entity>
+    <a-entity light="type: hemisphere; color: #fff6e0; groundColor: #6a5a8a; intensity: 0.9"></a-entity>
+    <a-entity id="portalLight" light="type: point; color: #ffdf9e; intensity: 0; distance: 9; decay: 1.6"
+              position="${HOLE.x} ${HOLE.y-0.15} ${HOLE.z}"></a-entity>
+    <a-entity id="world"></a-entity>
+  </a-scene>`;
+
+  const scene = document.getElementById('scene');
+
+  scene.addEventListener('loaded', () => {
+    const world = document.getElementById('world');
+    const E = (tag, attrs, parent) => {
+      const el = document.createElement(tag);
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+      (parent||world).appendChild(el); return el;
+    };
+
+    /* ---- flat-mode helper room so desktop preview isn't a void ----
+       Built lazily (see addFlatRoom below) only if the person actually picks
+       the desktop preview, never in AR — solid walls would block passthrough. */
+    function addFlatRoom(){
+      scene.setAttribute('background','color: #14172c');
+      E('a-plane',{position:'0 0 0',rotation:'-90 0 0',width:'8',height:'8',color:'#23273f'});
+      E('a-plane',{position:`0 ${HOLE.y+0.001} 0`,rotation:'90 0 0',width:'8',height:'8',color:'#1b1f36',material:'side: double'}); // visual ceiling hint (under occluder)
+      ['0 1.27 -4|0 0 0','0 1.27 4|0 180 0','-4 1.27 0|0 90 0','4 1.27 0|0 -90 0'].forEach(s=>{
+        const [p,r]=s.split('|');
+        E('a-plane',{position:p.replace('1.27',(HOLE.y/2).toFixed(2)),rotation:r,width:'8',height:HOLE.y,color:'#1e2340'});
+      });
+    }
+
+    /* ---- ceiling occluder + lids ---- */
+    E('a-entity',{'holed-ceiling':'',position:`${HOLE.x} ${HOLE.y} ${HOLE.z}`});
+    const lidL = E('a-entity',{'portal-lid':'side: l',position:`${HOLE.x} ${HOLE.y-0.005} ${HOLE.z}`});
+    const lidR = E('a-entity',{'portal-lid':'side: r',position:`${HOLE.x} ${HOLE.y-0.005} ${HOLE.z}`});
+
+    /* glowing seam + portal ring (visible content, sits just under ceiling) */
+    const seam = E('a-box',{position:`${HOLE.x} ${HOLE.y-0.01} ${HOLE.z}`,width:HOLE.r*2,height:0.012,depth:0.02,
+      material:'shader: flat; color: #ffe9b0; transparent: true; opacity: 0', visible:'true'});
+    const ring = E('a-torus',{position:`${HOLE.x} ${HOLE.y-0.01} ${HOLE.z}`,rotation:'90 0 0',
+      radius:HOLE.r+0.05,'radius-tubular':'0.028',segmentsTubular:'48',
+      material:'shader: flat; color: #ffdf9e; transparent: true; opacity: 0'});
+
+    /* ---- heaven (everything lives ABOVE the ceiling plane) ---- */
+    const heaven = E('a-entity',{id:'heaven',visible:'false'});
+    // sky dome: sphere fully above ceiling
+    const dome = E('a-sphere',{position:`${HOLE.x} ${HOLE.y+30} ${HOLE.z}`,radius:'30.5',
+      'segments-width':'32','segments-height':'24'},heaven);
+    dome.addEventListener('loaded',()=>{
+      const m = dome.getObject3D('mesh');
+      m.material = new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide });
+    });
+    // sun glow high above the stairs
+    const sun = E('a-plane',{position:`${HOLE.x} ${HOLE.y+16} ${HOLE.z-6}`,width:'14',height:'14',
+      material:'shader: flat; transparent: true; depthWrite: false'},heaven);
+    sun.addEventListener('loaded',()=>{ sun.getObject3D('mesh').material.map = glowTex; sun.getObject3D('mesh').material.needsUpdate=true; });
+    sun.setAttribute('animation','property: rotation; to: 0 0 360; dur: 90000; loop: true; easing: linear');
+    // clouds
+    for(let i=0;i<9;i++){
+      const a = (i/9)*Math.PI*2, r = 6+Math.random()*10;
+      const cl = E('a-plane',{
+        position:`${HOLE.x+Math.cos(a)*r} ${HOLE.y+4+Math.random()*9} ${HOLE.z+Math.sin(a)*r}`,
+        width:(4+Math.random()*4).toFixed(1), height:(1.6+Math.random()*1.6).toFixed(1),
+        material:'shader: flat; transparent: true; depthWrite: false; side: double'},heaven);
+      cl.addEventListener('loaded',()=>{ const m=cl.getObject3D('mesh').material; m.map=cloudTex; m.opacity=0.8; m.needsUpdate=true; });
+      cl.setAttribute('animation',`property: position; to: ${HOLE.x+Math.cos(a)*r*1.25} ${HOLE.y+4+Math.random()*9} ${HOLE.z+Math.sin(a)*r*1.25}; dur: ${40000+Math.random()*30000}; dir: alternate; loop: true; easing: easeInOutSine`);
+      cl.object3D.lookAt(new THREE.Vector3(HOLE.x, cl.object3D.position.y, HOLE.z));
+    }
+
+    /* ---- the staircase ----
+       descends from the hole into the real room, and continues up into the sky */
+    const stepsGroup = E('a-entity',{id:'steps'});
+    const stairPath = [];           // walkable points, from TOP (sky) to floor
+    const totalDown = Math.ceil(HOLE.y / STEP.rise);   // steps inside the room
+    const totalUp = 46;                                 // steps rising into heaven
+    const dir = new THREE.Vector3(0.28, 0, 0.96).normalize(); // descend toward the player, slight curve
+
+    function makeStep(x,y,z,i,inSky){
+      const g = E('a-entity',{position:`${x.toFixed(3)} ${y.toFixed(3)} ${z.toFixed(3)}`,
+        rotation:`0 ${(-Math.atan2(dir.x,dir.z)*180/Math.PI).toFixed(1)} 0`, class:'step'},
+        inSky?heaven:stepsGroup);
+      E('a-box',{width:STEP.w,height:STEP.h,depth:STEP.d,position:`0 ${-STEP.h/2} 0`,
+        material:`color: #f7ecd7; metalness: 0.35; roughness: 0.35; emissive: #c9a45a; emissiveIntensity: 0.12`},g);
+      E('a-box',{width:STEP.w+0.03,height:0.016,depth:STEP.d+0.03,position:`0 ${0.002} 0`,
+        material:'shader: flat; color: #ffe9b0; transparent: true; opacity: 0.85'},g);
+      g.object3D.scale.setScalar(0.001);
+      g.dataset.idx = i;
+      return g;
+    }
+
+    // room steps: top step sits at the hole, walking down+forward
+    for(let i=0;i<=totalDown;i++){
+      const y = HOLE.y - i*STEP.rise;
+      const x = HOLE.x + dir.x * i * STEP.d*0.92;
+      const z = HOLE.z + dir.z * i * STEP.d*0.92;
+      makeStep(x, Math.max(y, STEP.h), z, i, false);
+      stairPath.push(new THREE.Vector3(x, Math.max(y,STEP.h), z));
+    }
+    // sky steps: continue upward behind the hole, fading into the sun
+    for(let i=1;i<=totalUp;i++){
+      const y = HOLE.y + i*STEP.rise*1.05;
+      const x = HOLE.x - dir.x * i * STEP.d*0.92;
+      const z = HOLE.z - dir.z * i * STEP.d*0.92;
+      const g = makeStep(x,y,z, -i, true);
+      const fade = Math.max(0, 1 - i/totalUp);
+      g.querySelectorAll('a-box').forEach(b=>{
+        b.addEventListener('loaded',()=>{ const m=b.getObject3D('mesh').material; m.transparent=true; m.opacity=Math.min(1,0.25+fade); });
+      });
+      stairPath.unshift(new THREE.Vector3(x,y,z));
+    }
+    const skyStart = 8; // dancers appear a few steps above the hole
+
+    /* soft light shaft from the portal to the floor */
+    const shaft = E('a-cone',{position:`${HOLE.x} ${HOLE.y/2} ${HOLE.z}`,'radius-top':HOLE.r*0.92,'radius-bottom':HOLE.r*1.9,
+      height:HOLE.y, 'segments-radial':'28', 'open-ended':'true',
+      material:'shader: flat; color: #ffe9b0; transparent: true; opacity: 0; side: double; depthWrite: false'});
+    const floorGlow = E('a-plane',{position:`${HOLE.x+dir.x*1.2} 0.012 ${HOLE.z+dir.z*1.2}`,rotation:'-90 0 0',width:'5.4',height:'5.4',
+      material:'shader: flat; transparent: true; depthWrite: false; opacity: 0'});
+    floorGlow.addEventListener('loaded',()=>{ const m=floorGlow.getObject3D('mesh').material; m.map=floorGlowTex; m.needsUpdate=true; });
+
+    /* ================= DANCERS ================= */
+    function makeDancer(colorHex){
+      const root = new THREE.Group();
+      const col = new THREE.Color(colorHex);
+      const mat = () => new THREE.MeshStandardMaterial({
+        color: col, emissive: col, emissiveIntensity: 0.85,
+        metalness: 0.1, roughness: 0.4, transparent:true, opacity:0.96
+      });
+      const limb = (rx,ry,len)=>{ // capsule-ish limb hanging from its pivot
+        const g = new THREE.Group();
+        const geo = new THREE.CapsuleGeometry(rx, len, 4, 10);
+        const m = new THREE.Mesh(geo, mat());
+        m.position.y = -(len/2 + rx);
+        g.add(m); return g;
+      };
+      const hips = new THREE.Group(); hips.position.y = 0.92; root.add(hips);
+      // torso
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.34, 4, 12), mat());
+      torso.position.y = 0.30; hips.add(torso);
+      // head + halo
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.105, 16, 14), mat());
+      head.position.y = 0.62; hips.add(head);
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(0.15,0.008,10,32),
+        new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.85}));
+      halo.position.y = 0.76; halo.rotation.x = Math.PI/2.4; hips.add(halo);
+      // arms
+      const shL = new THREE.Group(); shL.position.set( 0.17, 0.46, 0); hips.add(shL);
+      const shR = new THREE.Group(); shR.position.set(-0.17, 0.46, 0); hips.add(shR);
+      const armL = limb(0.038,0,0.26); shL.add(armL);
+      const armR = limb(0.038,0,0.26); shR.add(armR);
+      const elL = new THREE.Group(); elL.position.y = -0.34; armL.add(elL);
+      const elR = new THREE.Group(); elR.position.y = -0.34; armR.add(elR);
+      elL.add(limb(0.034,0,0.24)); elR.add(limb(0.034,0,0.24));
+      // legs
+      const hipL = new THREE.Group(); hipL.position.set( 0.085, 0, 0); hips.add(hipL);
+      const hipR = new THREE.Group(); hipR.position.set(-0.085, 0, 0); hips.add(hipR);
+      const legL = limb(0.045,0,0.36); hipL.add(legL);
+      const legR = limb(0.045,0,0.36); hipR.add(legR);
+      const knL = new THREE.Group(); knL.position.y = -0.45; legL.add(knL);
+      const knR = new THREE.Group(); knR.position.y = -0.45; legR.add(knR);
+      knL.add(limb(0.04,0,0.34)); knR.add(limb(0.04,0,0.34));
+      root.userData = { hips, head, shL, shR, elL, elR, hipL, hipR, knL, knR, halo };
+      return root;
+    }
+
+    AFRAME.registerComponent('dancer', {
+      schema:{ color:{type:'string'}, delay:{type:'number'}, spot:{type:'vec3'}, phase:{type:'number'} },
+      init(){
+        this.model = makeDancer(this.data.color);
+        this.el.setObject3D('mesh', this.model);
+        this.state = 'wait';
+        this.t = 0;
+        this.pathT = 0;
+        this.speed = 0.72; // steps per second along the path
+        // floor glow puck under the dancer
+        const puck = new THREE.Mesh(new THREE.CircleGeometry(0.42, 28),
+          new THREE.MeshBasicMaterial({ map: floorGlowTex, transparent:true, depthWrite:false, opacity:0.0 }));
+        puck.rotation.x = -Math.PI/2; puck.position.y = 0.015;
+        this.puck = puck; this.model.add(puck);
+        this.el.object3D.visible = false;
+      },
+      go(){ this.state='delay'; this.t=0; },
+      tick(time, dtMs){
+        if (this.state==='wait') return;
+        const dt = Math.min(dtMs,50)/1000; this.t += dt;
+        const D = this.model.userData, ph = this.data.phase;
+
+        if (this.state==='delay'){
+          if (this.t >= this.data.delay){ this.state='descend'; this.t=0; this.pathT=skyStart; this.el.object3D.visible=true; }
+          return;
+        }
+
+        if (this.state==='descend'){
+          this.pathT += dt*this.speed*3.2;
+          const idx = Math.min(Math.floor(this.pathT), stairPath.length-2);
+          const f = Math.min(this.pathT - idx, 1);
+          const a = stairPath[idx], b = stairPath[idx+1];
+          const p = a.clone().lerp(b, f);
+          // little bounce per step
+          p.y += Math.abs(Math.sin(f*Math.PI))*0.045;
+          this.el.object3D.position.copy(p);
+          // face walking direction
+          const look = b.clone().sub(a); look.y=0;
+          if (look.lengthSq()>0.0001) this.el.object3D.rotation.y = Math.atan2(look.x, look.z);
+          // walking limbs
+          const w = this.pathT*Math.PI*2*0.5;
+          D.hipL.rotation.x =  Math.sin(w)*0.65; D.hipR.rotation.x = -Math.sin(w)*0.65;
+          D.knL.rotation.x  =  Math.max(0,-Math.sin(w))*0.9; D.knR.rotation.x = Math.max(0,Math.sin(w))*0.9;
+          D.shL.rotation.x  = -Math.sin(w)*0.4; D.shR.rotation.x =  Math.sin(w)*0.4;
+          D.shL.rotation.z = 0.15; D.shR.rotation.z = -0.15;
+          if (this.pathT >= stairPath.length-1){
+            this.state='walkToSpot'; this.t=0;
+            this.from = this.el.object3D.position.clone();
+            this.to = new THREE.Vector3(this.data.spot.x, 0, this.data.spot.z);
+          }
+          return;
+        }
+
+        if (this.state==='walkToSpot'){
+          const dur = 1.6, f = Math.min(this.t/dur, 1);
+          const e = f*f*(3-2*f);
+          const p = this.from.clone().lerp(this.to, e);
+          p.y = Math.abs(Math.sin(f*Math.PI*3))*0.03;
+          this.el.object3D.position.copy(p);
+          const look = this.to.clone().sub(this.from); look.y=0;
+          if (look.lengthSq()>0.0001) this.el.object3D.rotation.y = Math.atan2(look.x, look.z);
+          const w = this.t*Math.PI*4;
+          D.hipL.rotation.x = Math.sin(w)*0.5; D.hipR.rotation.x = -Math.sin(w)*0.5;
+          if (f>=1){ this.state='dance'; this.t=0; this.puckTarget=0.8;
+            // face room center
+            this.el.object3D.rotation.y = Math.atan2(HOLE.x - this.to.x, (HOLE.z+1.4) - this.to.z);
+          }
+          return;
+        }
+
+        if (this.state==='dance'){
+          const t = this.t + ph*1.7;
+          this.puck.material.opacity += (0.8 - this.puck.material.opacity)*dt*2;
+          const move = Math.floor(t/6) % 4; // change move every 6s
+          const beat = t*Math.PI*2*(100/60)/2; // musical feel ~100bpm halves
+
+          // base groove: hips bounce + sway
+          D.hips.position.y = 0.92 + Math.abs(Math.sin(beat))*0.07 - 0.02;
+          D.hips.rotation.z = Math.sin(beat*0.5)*0.12;
+          D.head.rotation.z = Math.sin(beat*0.5+0.6)*0.15;
+          D.halo.rotation.z += dt*1.2;
+
+          if (move===0){ // wave arms overhead
+            D.shL.rotation.z = 2.6 + Math.sin(beat)*0.5;
+            D.shR.rotation.z = -2.6 - Math.sin(beat+Math.PI)*0.5;
+            D.elL.rotation.z = Math.sin(beat*2)*0.5; D.elR.rotation.z = -Math.sin(beat*2)*0.5;
+            D.shL.rotation.x = D.shR.rotation.x = 0;
+            this.el.object3D.rotation.y += dt*0.0;
+          } else if (move===1){ // spin!
+            this.el.object3D.rotation.y += dt*2.4;
+            D.shL.rotation.z = 1.5; D.shR.rotation.z = -1.5;
+            D.elL.rotation.z = 0.3; D.elR.rotation.z = -0.3;
+          } else if (move===2){ // step-touch side to side
+            const base = this.to;
+            this.el.object3D.position.x = base.x + Math.sin(beat*0.5)*0.28;
+            D.hipL.rotation.x = Math.sin(beat)*0.4; D.hipR.rotation.x = -Math.sin(beat)*0.4;
+            D.shL.rotation.z = 0.9+Math.sin(beat)*0.7; D.shR.rotation.z = -0.9-Math.sin(beat)*0.7;
+          } else { // reach to the sky (toward the portal)
+            D.shL.rotation.z = 2.9; D.shR.rotation.z = -2.9;
+            D.elL.rotation.z = Math.sin(beat*1.5)*0.25; D.elR.rotation.z = -Math.sin(beat*1.5)*0.25;
+            D.hips.rotation.x = -0.12 + Math.sin(beat*0.5)*0.05;
+          }
+          // legs groove when not stepping
+          if (move!==2){
+            D.hipL.rotation.x = Math.sin(beat)*0.18; D.hipR.rotation.x = -Math.sin(beat)*0.18;
+            D.knL.rotation.x = Math.max(0,Math.sin(beat))*0.3; D.knR.rotation.x = Math.max(0,-Math.sin(beat))*0.3;
+          }
+        }
+      }
+    });
+
+    /* create 4 dancers with spots around the room */
+    const center = { x: HOLE.x + dir.x*1.6, z: HOLE.z + dir.z*1.6 };
+    const dancers = DANCER_COLORS.map((c,i)=>{
+      const ang = (i/DANCER_COLORS.length)*Math.PI*2 + 0.6;
+      const spot = { x: center.x + Math.cos(ang)*1.05, y: 0, z: center.z + Math.sin(ang)*1.05 };
+      const d = E('a-entity',{});
+      d.setAttribute('dancer',{ color:c, delay: 1.2 + i*2.2, spot: `${spot.x} 0 ${spot.z}`, phase: i });
+      return d;
+    });
+
+    /* ---------------- sequence: open the ceiling ---------------- */
+    function runSequence(){
+      const audio = window.__audio = createAudio();
+      audio.start();
+      const heavenEl = document.getElementById('heaven');
+      const portalLight = document.getElementById('portalLight');
+
+      // 1) seam of light appears on the ceiling
+      setTimeout(()=>{
+        seam.setAttribute('animation__in','property: material.opacity; to: 1; dur: 1200; easing: easeInQuad');
+        seam.setAttribute('animation__pulse','property: material.opacity; from: 1; to: 0.5; dur: 500; dir: alternate; loop: 3; delay: 1200');
+      }, 1200);
+
+      // 2) ceiling parts open
+      setTimeout(()=>{
+        heavenEl.setAttribute('visible','true');
+        seam.setAttribute('animation__out','property: material.opacity; to: 0; dur: 600');
+        lidL.setAttribute('animation__slide',`property: position; to: ${HOLE.x-HOLE.r*2.15} ${HOLE.y-0.005} ${HOLE.z}; dur: 3200; easing: easeInOutQuad`);
+        lidR.setAttribute('animation__slide',`property: position; to: ${HOLE.x+HOLE.r*2.15} ${HOLE.y-0.005} ${HOLE.z}; dur: 3200; easing: easeInOutQuad`);
+        ring.setAttribute('animation__in','property: material.opacity; to: 0.95; dur: 2200; easing: easeOutQuad');
+        ring.setAttribute('animation__spin','property: rotation; to: 90 360 0; dur: 24000; loop: true; easing: linear');
+        portalLight.setAttribute('animation__on','property: light.intensity; to: 1.6; dur: 3000; easing: easeOutQuad');
+        shaft.setAttribute('animation__in','property: material.opacity; to: 0.13; dur: 3200; delay: 800');
+        floorGlow.setAttribute('animation__in','property: material.opacity; to: 0.85; dur: 3200; delay: 800');
+      }, 4200);
+
+      // 3) stairs materialize step by step, from the portal downward and upward
+      setTimeout(()=>{
+        const all = Array.from(document.querySelectorAll('.step'));
+        all.sort((a,b)=>Math.abs(+a.dataset.idx)-Math.abs(+b.dataset.idx));
+        all.forEach((s,i)=>{
+          s.setAttribute('animation__pop',`property: scale; to: 1 1 1; dur: 500; delay: ${i*70}; easing: easeOutBack`);
+        });
+      }, 6800);
+
+      // 4) dancers descend + beat kicks in
+      setTimeout(()=>{
+        audio.enableBeat();
+        dancers.forEach(d=>d.components.dancer.go());
+      }, 10500);
+    }
+
+    /* ---------------- enter ---------------- */
+    function enter(){
+      document.getElementById('entry').classList.add('hide');
+      setTimeout(runSequence, 600);
+    }
+    window.enterFlat = function(){
+      flatMode = true;
+      addFlatRoom();
+      setStatus('');
+      enter();
+    };
+
+    // fires once the headset actually grants the passthrough session
+    scene.addEventListener('enter-vr', enter);
+    scene.addEventListener('exit-vr', ()=>{
+      document.getElementById('entry').classList.remove('hide');
+      setStatus('');
+    });
+
+    if (onReady) onReady();
+  });
+}
+</script>
+</body>
+</html>
