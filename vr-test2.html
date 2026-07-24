@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>בדיקת VR 2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.7.1/aframe.min.js"></script>
+</head>
+<body>
+<!-- XRMode: xr => shows BOTH buttons: AR and VR.
+     Test both. VR = full virtual world (blue sky). AR = passthrough.
+     A beep plays the moment a session starts, proving the page's code is alive inside it. -->
+<a-scene xr-mode-ui="XRMode: xr" renderer="alpha: true; colorManagement: true" background="">
+
+  <!-- sky only in VR mode; auto-hidden in AR so passthrough stays visible -->
+  <a-sky color="#1a2a6c" hide-on-enter-ar></a-sky>
+
+  <!-- a full ring of bright boxes around the player: impossible to miss in any direction -->
+  <a-entity id="ring"></a-entity>
+
+  <!-- big center markers at several heights & distances -->
+  <a-box position="0 1.4 -1" width="0.5" height="0.5" depth="0.5" color="#ff2d7a"
+         animation="property: rotation; to: 45 360 0; dur: 3000; loop: true; easing: linear"></a-box>
+  <a-sphere position="0 0.6 -1" radius="0.25" color="#4dd9ff"></a-sphere>
+  <a-cylinder position="0 2.2 -1" radius="0.2" height="0.4" color="#ffd24d"></a-cylinder>
+  <a-text value="HELLO!" position="0 1.9 -1" align="center" color="#ffffff" width="6"></a-text>
+
+  <!-- glowing floor circle right under the player -->
+  <a-circle position="0 0.01 0" rotation="-90 0 0" radius="1.2" color="#26d97f" opacity="0.6"></a-circle>
+
+</a-scene>
+
+<script>
+  // ring of 12 boxes, 360 degrees, alternating colors, 2m away at eye height
+  document.addEventListener('DOMContentLoaded', function(){
+    var ring = document.getElementById('ring');
+    var colors = ['#ff2d7a','#4dd9ff','#ffd24d','#26d97f'];
+    for (var i=0;i<12;i++){
+      var a = i/12*Math.PI*2;
+      var b = document.createElement('a-box');
+      b.setAttribute('position', (Math.sin(a)*2).toFixed(2)+' 1.5 '+(Math.cos(a)*2).toFixed(2));
+      b.setAttribute('width','0.3'); b.setAttribute('height','0.3'); b.setAttribute('depth','0.3');
+      b.setAttribute('color', colors[i%4]);
+      ring.appendChild(b);
+    }
+    var scene = document.querySelector('a-scene');
+    scene.addEventListener('enter-vr', function(){
+      // audible proof the session started and our code is running inside it
+      try{
+        var ctx = new (window.AudioContext||window.webkitAudioContext)();
+        ctx.resume();
+        [440,660,880].forEach(function(f,i){
+          var o=ctx.createOscillator(), g=ctx.createGain();
+          o.frequency.value=f; g.gain.value=0.2;
+          o.connect(g); g.connect(ctx.destination);
+          o.start(ctx.currentTime+i*0.18); o.stop(ctx.currentTime+i*0.18+0.15);
+        });
+      }catch(e){}
+    });
+  });
+</script>
+</body>
+</html>
